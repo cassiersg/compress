@@ -1,0 +1,5 @@
+INPUTS i0 i1 i2
+OUTPUTS o0
+
+t = i0 & i1
+o0 = t + i2

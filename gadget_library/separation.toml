@@ -1,0 +1,264 @@
+
+[[gadget]]
+name = "MSKxor"
+operation = "XOR"
+[[gadget.port]]
+name = 'ina'
+latency = 0
+[[gadget.port]]
+name = 'inb'
+latency = 0
+
+[[gadget]]
+name = "MSKxnor"
+operation = "XNOR"
+[[gadget.port]]
+name = 'ina'
+latency = 0
+[[gadget.port]]
+name = 'inb'
+latency = 0
+
+[[gadget]]
+name = "MSKinv"
+operation = "NOT"
+[[gadget.port]]
+name = 'in'
+latency = 0
+
+### HPC2 AND ###
+
+[[gadget]]
+name = "MSKand_hpc2"
+operation = 'AND'
+[[gadget.port]]
+name = 'ina'
+latency = 1
+[[gadget.port]]
+name = 'inb'
+latency = 2
+[[gadget.random_port]]
+name = 'rnd'
+latency = 2
+n_bits = 'HPC2'
+
+### HPC2 AND SWAPPED ###
+[[gadget]]
+name = "MSKand_hpc2_swapped"
+operation = 'AND'
+[[gadget.port]]
+name = 'ina'
+latency = 2
+[[gadget.port]]
+name = 'inb'
+latency = 1
+[[gadget.random_port]]
+name = 'rnd'
+latency = 2
+n_bits = 'HPC2'
+
+# ### HPC2 AND OPT ###
+# [[gadget]]
+# name = "MSKand_hpc2o2"
+# operation = 'AND'
+# [[gadget.port]]
+# name = 'ina'
+# latency = 1
+# [[gadget.port]]
+# name = 'inb'
+# latency = 2
+# has_prev=true
+# [[gadget.random_port]]
+# name = 'rnd'
+# latency = 2
+# n_bits = 'HPC2'
+
+# ### HPC2 AND OPT SWAPPED###
+# [[gadget]]
+# name = "MSKand_hpc2o2_swapped"
+# operation = 'AND'
+# [[gadget.port]]
+# name = 'ina'
+# latency = 2
+# has_prev=true
+# [[gadget.port]]
+# name = 'inb'
+# latency = 1
+# [[gadget.random_port]]
+# name = 'rnd'
+# latency = 2
+# n_bits = 'HPC2'
+
+### HPC3 AND ###
+[[gadget]]
+name = "MSKand_hpc3"
+operation = 'AND'
+[[gadget.port]]
+name = 'ina'
+latency = 1
+[[gadget.port]]
+name = 'inb'
+latency = 1
+[[gadget.random_port]]
+name = 'rnd'
+latency = 1
+n_bits = 'HPC3'
+
+# ### HPC3 AND OPT ###
+# [[gadget]]
+# name = "MSKand_hpc3o"
+# operation = 'AND'
+# [[gadget.port]]
+# name = 'ina'
+# latency = 1
+# has_prev = true
+# [[gadget.port]]
+# name = 'inb'
+# latency = 1
+# [[gadget.random_port]]
+# name = 'rnd'
+# latency = 1
+# n_bits = 'HPC3'
+
+# ### HPC3 AND OPT SWAPPED ###
+# [[gadget]]
+# name = "MSKand_hpc3o_swapped"
+# operation = 'AND'
+# [[gadget.port]]
+# name = 'ina'
+# latency = 1
+# [[gadget.port]]
+# name = 'inb'
+# latency = 1
+# has_prev = true
+# [[gadget.random_port]]
+# name = 'rnd'
+# latency = 1
+# n_bits = 'HPC3'
+
+### HPC2 AND CROSS ###
+
+[[gadget]]
+name = "MSKand_hpc2_cross"
+operation = 'CROSS'
+[[gadget.port]]
+name = 'ina'
+latency = 1
+[[gadget.port]]
+name = 'inb'
+latency = 2
+[[gadget.random_port]]
+name = 'rnd'
+latency = 2
+n_bits = 'HPC2'
+
+
+### HPC2 AND CROSS SWAPPED ###
+
+[[gadget]]
+name = "MSKand_hpc2_cross_swapped"
+operation = 'CROSS'
+[[gadget.port]]
+name = 'ina'
+latency = 2
+[[gadget.port]]
+name = 'inb'
+latency = 1
+[[gadget.random_port]]
+name = 'rnd'
+latency = 2
+n_bits = 'HPC2'
+
+# ### HPC2 AND CROSS OPT ###
+
+# [[gadget]]
+# name = "MSKand_hpc2o_cross"
+# operation = 'CROSS'
+# [[gadget.port]]
+# name = 'ina'
+# latency = 1
+# [[gadget.port]]
+# name = 'inb'
+# latency = 2
+# [[gadget.random_port]]
+# name = 'rnd'
+# latency = 2
+# n_bits = 'HPC2'
+
+# ### HPC2 AND CROSS OPT SWAPPED ###
+
+# [[gadget]]
+# name = "MSKand_hpc2o_cross_swapped"
+# operation = 'CROSS'
+# [[gadget.port]]
+# name = 'ina'
+# latency = 2
+# [[gadget.port]]
+# name = 'inb'
+# latency = 1
+# [[gadget.random_port]]
+# name = 'rnd'
+# latency = 2
+# n_bits = 'HPC2'
+
+### HPC3 AND CROSS ###
+
+[[gadget]]
+name = "MSKand_hpc3_cross"
+operation = 'CROSS'
+[[gadget.port]]
+name = 'ina'
+latency = 1
+[[gadget.port]]
+name = 'inb'
+latency = 1
+[[gadget.random_port]]
+name = 'rnd'
+latency = 1
+n_bits = 'HPC3'
+
+### HPC3 AND CROSS ER ###
+
+[[gadget]]
+name = "MSKand_hpc3_cross_er"
+operation = 'CROSS'
+[[gadget.port]]
+name = 'ina'
+latency = 1
+has_prev=true
+[[gadget.port]]
+name = 'inb'
+latency = 1
+[[gadget.random_port]]
+name = 'rnd'
+latency = 1
+n_bits = 'HPC3'
+
+### HPC3 AND CROSS ER SWAPPED ###
+
+[[gadget]]
+name = "MSKand_hpc3_cross_er_swapped"
+operation = 'CROSS'
+[[gadget.port]]
+name = 'ina'
+latency = 1
+[[gadget.port]]
+name = 'inb'
+latency = 1
+has_prev=true
+[[gadget.random_port]]
+name = 'rnd'
+latency = 1
+n_bits = 'HPC3'
+
+### SHAREWISE AND ###
+
+[[gadget]]
+name = "MSKand_sharewise"
+operation = 'INNER'
+[[gadget.port]]
+name = 'ina'
+latency = 0
+[[gadget.port]]
+name = 'inb'
+latency = 0

@@ -1,0 +1,28 @@
+# Skinny-8 sbox with AND gates instead of NOR gates.
+
+INPUTS i0 i1 i2 i3 i4 i5 i6 i7
+OUTPUTS o0 o1 o2 o3 o4 o5 o6 o7
+
+
+t0 = i6 & i7
+t1 = i3 & i2
+t2 = i2 & i1
+
+o6 = t0 + i4
+o5 = t1 + i0
+o1 = t2 + i6
+
+t3 = o6 & o5
+t4 = i3 & o5
+
+o7 = i5 + t3
+o3 = t4 + i1
+t5 = o7 & o1
+o2 = t5 + i7
+
+
+t6 = o7 & o6
+t7 = o3 & o2
+
+o0 = t7 + i2
+o4 = t6 + i3

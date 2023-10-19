@@ -1,0 +1,37 @@
+INPUTS i0 i1 i2 i3 i4 i5 i6 i7
+OUTPUTS o0 o1 o2 o3 o4 o5 o6 o7
+
+n1 = !i1
+n2 = !i2
+n3 = !i3
+n6 = !i6
+n7 = !i7
+
+t0 = n6 & n7
+t1 = n3 & n2
+t2 = n2 & n1
+
+nt0 = !t0
+nt1 = !t1
+nt2 = !t2
+
+t3 = nt0 & nt1
+t4 = nt1 & n3
+
+nt3 = !t3
+t5 = nt2 & nt3
+nt4 = !t4
+nt5 = !t5
+
+t6 = nt3 & nt0
+t7 = nt4 & nt5
+
+o6 = t0 + i4
+o5 = t1 + i0
+o2 = t2 + i6
+o7 = t3 + i5
+
+o0 = t7 + i2
+o4 = t6 + i3
+o1 = t5 + i7
+o3 = t4 + i1

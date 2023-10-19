@@ -1,0 +1,18 @@
+// + XOR
+// & AND
+// # XNOR
+
+INPUTS i0 i1 i2 i3 i4
+OUTPUTS o0 o1 o2 o3 o4
+
+n0 = !i0
+n1 = !i1
+n2 = !i2
+n3 = !i3
+n4 = !i4
+
+o0 = i1 & n0
+o1 = i2 & n1
+o2 = i3 & n2
+o3 = i4 & n3
+o4 = i0 & n4

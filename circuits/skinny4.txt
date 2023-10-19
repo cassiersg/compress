@@ -1,0 +1,19 @@
+INPUTS i0 i1 i2 i3
+OUTPUTS o0 o1 o2 o3
+
+n0 = !i0
+n1 = !i1
+n2 = !i2
+n3 = !i3
+
+t3 = n3 & n2
+t2 = n2 & n1
+
+o3 = t3 + i0
+o2 = t2 + i3
+
+t1 = o3 & i1
+t0 = o2 & o3
+
+o1 = t1 + i2
+o0 = t0 + i1
