@@ -30,7 +30,7 @@ genvar i,j;
 
 // unpack vector to matrix --> easier for randomness handling
 wire [mat_rnd-1:0] rnd0 = rnd[0 +: mat_rnd];
-wire [mat_rnd-1:0] rnd1 = rnd[0 +: mat_rnd];
+wire [mat_rnd-1:0] rnd1 = rnd[mat_rnd +: mat_rnd];
 wire [d-1:0] rnd_mat0 [d-1:0]; 
 wire [d-1:0] rnd_mat1 [d-1:0]; 
 for(i=0; i<d; i=i+1) begin: rnd_mat_i
