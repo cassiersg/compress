@@ -8,17 +8,9 @@
 // OF MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A PARTICULAR PURPOSE.
 // Please see the CERN-OHL-P v2 for applicable conditions.
 
-// Trivial gate, we use this module to selectively disable systhesis optimizations.
-module bin_NOT 
-#
-(
-    parameter W = 1
-)
-(
-    input [W-1:0] in,
-    output [W-1:0] out
-);
+// Randomness usage of HPC1 AND gadget.
 
-assign out = ~in;
+`include "MSKref_sni.vh"
 
-endmodule 
+localparam dom_rnd = d*(d-1)/2;
+localparam hpc1rnd = ref_n_rnd + dom_rnd;

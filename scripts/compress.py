@@ -9,9 +9,8 @@
 # - a verilog module implementing the circuit
 # - a verilog header file describing the randomness usage.
 
-# TODO check that header doesn't particularize to a given number of shares.
-
 import argparse
+from collections import defaultdict
 import csv
 from dataclasses import dataclass, field
 from enum import Enum
@@ -19,10 +18,10 @@ import itertools as it
 import json
 from math import ceil
 from pathlib import Path
+import time
 from typing import Sequence, Mapping, Tuple, Set, NewType, Callable, Optional, Any
 import re
 from shutil import rmtree
-from collections import defaultdict
 
 import cpmpy as cp
 import numpy as np
@@ -45,9 +44,9 @@ class Operation(str, Enum):
     XNOR = '#'
     AND = '&'
     NOT = '!'
-    # Cross-domain part of a AND gate.
+    # Cross-domain part of an AND gate.
     CROSS = 'cross'
-    # Inner-domain part of a AND gate.
+    # Inner-domain part of an AND gate.
     INNER = 'inner'
     # Toffoli gate. Let [op0, op1, op2, op3, ...] be the operands, this
     # computes (op0 & op1) ^ op2 ^ op3 ^ ...
@@ -123,7 +122,7 @@ class Circuit:
         #     OUTPUTS o0 o1
         #     o0 = i0 + i1 // a XOR gate
         #     t = i0 # i1 // a XNOR gate
-        #     o1 = i0 & t // a AND gate
+        #     o1 = i0 & t // an AND gate
         c = Circuit()
         # Split into lines, remove comments and extraneous whitespace
         l = [line.split('//')[0].strip() for line in circuit.splitlines()]
@@ -231,32 +230,32 @@ class Circuit:
 ############ Gadgets #############
 ##################################
 
-class RandomnessReq:
-    @classmethod
-    def HPC2(cls,d):
-        return d*(d-1)//2
-    @classmethod
-    def HPC3(cls,d):
-        return d*(d-1)
+def randomness_req(rnd_gtype):
+    match rnd_gtype:
+        case 'HPC2':
+            return ('d*(d-1)/2', lambda d: d*(d-1)//2)
+        case 'HPC3':
+            return ('d*(d-1)', lambda d: d*(d-1))
+        case _:
+            assert False
 
 @dataclass
 class GateImpl:
     "A masked gadget."
     name: str
     latencies: Sequence[Mapping[int, str]]
-    # Maps port name to (latency, rng cost in bits)
-    randomness_usage: Mapping[str, Tuple[int, int]]
+    # Maps port name to (latency, rng cost in bits for selected nshares, rng cost as verilog expression)
+    randomness_usage: Mapping[str, Tuple[int, int, str]]
     area_ge: float
-    # rng_cost_per_bit
     rng_area_ge: float
     @property
     def has_clk(self):
-        return any(x != 0 for x in [l for d in self.latencies for l in d]) or any(lat != 0 for lat, _ in self.randomness_usage.values())
+        return any(x != 0 for x in [l for d in self.latencies for l in d]) or any(lat != 0 for lat, _, _ in self.randomness_usage.values())
 
     @property
     def cost_ge(self):
         # Ignores fixed rnd area
-        return self.area_ge + sum([self.rng_area_ge*rng_cost for _,rng_cost in self.randomness_usage.values()])
+        return self.area_ge + sum([self.rng_area_ge*rng_cost for _, rng_cost, _ in self.randomness_usage.values()])
 
     @property
     def cost_ge_int(self):
@@ -265,32 +264,18 @@ class GateImpl:
 
 
 @dataclass(frozen=True)
-class GeneratorParams:
+class Parameters:
     num_shares: int
     latency: int
     circuit: Path
     out: Path
     outh: Path
-    gate_impl: Mapping[Operation, list[GateImpl]]
-    gadget_names: list[str]
-    gadget_library: Mapping[str, GateImpl]
-    reg_cost: float
     toffoli: bool
     gadgets_area_csv: Path
     rng_area_txt: Path
     outstats: Path
-    rng_cost_per_bit: float
     gadgets_config: Path
-    time_limit: float
-    def __post_init__(self) -> None:
-        if not self.gate_impl:
-            raise ValueError("gate_impl is None, use from_args classmethod")
-    @classmethod
-    def from_args(cls, num_shares, latency, circuit, out, outh, toffoli, gadgets_area_csv, rng_area_txt, outstats, gadgets_config, time_limit, **kwargs) -> "GeneratorParams":
-        gi,rc,rngcpb = gen_gate_impls(num_shares, gadgets_area_csv, rng_area_txt, gadgets_config)
-        gn = [gadget.name for gadgets in gi.values() for gadget in gadgets]
-        ag = {gadget.name: gadget for gadgets in gi.values() for gadget in gadgets}
-        return cls(num_shares=num_shares, latency=latency, circuit=circuit, out=out, outh=outh, gate_impl=gi, gadget_names=gn, gadget_library=ag, reg_cost=rc, toffoli=toffoli, gadgets_area_csv=gadgets_area_csv, rng_area_txt=rng_area_txt, outstats=outstats, rng_cost_per_bit=rngcpb, gadgets_config=gadgets_config, time_limit=time_limit)
+    time_limit: float # in seconds
 
 
 ##################################
@@ -360,10 +345,19 @@ def gen_gate_impls(num_shares: int, gacsv: Path, rngtxt: Path, gadgets_config: P
     with open(rngtxt, 'r') as f:
         m = float(f.read())
     for gadget in gadgets:
+        latencies = []
+        for port in gadget['port']:
+            latencies.append({ port['latency']: port['name'] })
+            if port.get('has_prev'):
+                latencies[-1][port['latency']-1] = port['name']+'_prev'
+        randomness_usage= dict()
+        for rngport in gadget.get('random_port', dict()):
+            rnd_req_str, rnd_req_fn = randomness_req(rngport['n_bits'])
+            randomness_usage[rngport['name']] = (rngport['latency'], rnd_req_fn(num_shares), rnd_req_str)
         gate = GateImpl(
             name=gadget['name'], 
-            latencies=[{port['latency']:port['name'], port['latency']-1:port['name']+'_prev'} if port.get('has_prev', False) else {port['latency']:port['name']} for port in gadget['port']],
-            randomness_usage={rngport['name']:(rngport['latency'], getattr(RandomnessReq, rngport['n_bits'])(num_shares)) for rngport in gadget['random_port']} if 'random_port' in gadget else {},
+            latencies=latencies,
+            randomness_usage=randomness_usage,
             area_ge=areas[gadget['name']],
             rng_area_ge=m,
         )
@@ -515,7 +509,7 @@ def rnd_reqs(gadgets, gadget_library):
             return '+'.join(f'{n}*({count})' for count, n in rnd_count.items())
     for gadget, v, i, _ in gadgets:
         rnds_gadget =  dict()
-        for name, (lat, count) in gadget_library[gadget].randomness_usage.items():
+        for name, (lat, _, count) in gadget_library[gadget].randomness_usage.items():
             global_lat = i-lat
             lat_rnd_count = randoms.setdefault(global_lat, dict())
             rnds_gadget[lat] = f'.{name}(rnd{global_lat}[{format_rnd_count(lat_rnd_count)} +: {count}])'
@@ -558,7 +552,7 @@ class VerilogGenerator:
         lat_count = defaultdict(lambda: defaultdict(lambda: 0))
         rnd_assign = dict()
         for gadget, v, i, _, _ in self.gadgets:
-            for name, (lat, size_expr) in self.gadget_library[gadget].randomness_usage.items():
+            for name, (lat, _, size_expr) in self.gadget_library[gadget].randomness_usage.items():
                 global_lat = i - lat
                 rnd_assign[(gadget, v, i)] = lat_count[global_lat].copy()
                 lat_count[global_lat][size_expr] += 1
@@ -705,7 +699,7 @@ class VerilogGenerator:
                 ports['out'] = f'{v}_{l}'
             ports.update(
                     (name, f'rnd{l-lat}[{self.format_rnd_count(rnd_assign[(gadget, v, l)])} +: {count}]')
-                    for name, (lat, count) in self.gadget_library[gadget].randomness_usage.items()
+                    for name, (lat, _, count) in self.gadget_library[gadget].randomness_usage.items()
                     )
             operands_ports = computation.operands[:2] if computation.operation == Operation.Toffoli else computation.operands
             for op, lats in zip(operands_ports, self.gadget_library[gadget].latencies):
@@ -738,7 +732,7 @@ def eval_expr(x):
 ##################################
 
 
-def generate_sbox(params: GeneratorParams):
+def generate_masked_circuit(params: Parameters):
     with open(params.circuit, 'r') as f:
         s = f.read()
     c = Circuit.from_circuit_str(s)
@@ -747,23 +741,27 @@ def generate_sbox(params: GeneratorParams):
     c.split_and_inner_cross()
 
     m = model_basic(c, params.latency)
-    model_gadgets(m, c, params.latency, params.gadget_library, params.gate_impl)
-    m.minimize(cp.sum(ceil(params.gadget_library[gadget].cost_ge_int) * count for gadget, count in m.gadget_count.items()) + params.reg_cost * m.n_regs)
+    gate_impl, reg_cost, rng_cost_per_bit = gen_gate_impls(params.num_shares, params.gadgets_area_csv, params.rng_area_txt, params.gadgets_config)
+    gadget_library = {gadget.name: gadget for gadgets in gate_impl.values() for gadget in gadgets}
+    model_gadgets(m, c, params.latency, gadget_library, gate_impl)
+    m.minimize(cp.sum(ceil(gadget_library[gadget].cost_ge_int) * count for gadget, count in m.gadget_count.items()) + reg_cost * m.n_regs)
 
+    t0 = time.time()
     hassol = m.solve(time_limit=params.time_limit)
+    solve_time = time.time() - t0
     print("Status:", m.status())  # Status: ExitStatus.OPTIMAL (0.03033301 seconds)
     if hassol:
         print("solution found.")
         ge_sum = 0
         rng_sum = 0
         stats = {}
-        for gadget in params.gadget_library:
+        for gadget in gadget_library:
             print(f'{gadget}: {eval_expr(m.gadget_count[gadget])}')
             stats[gadget] = int(eval_expr(m.gadget_count[gadget]))
-            ge_sum += eval_expr(m.gadget_count[gadget]) * params.gadget_library[gadget].cost_ge
-            rng_sum += eval_expr(m.gadget_count[gadget]) * params.gadget_library[gadget].randomness_usage.get('rnd', [0,0])[1]
+            ge_sum += eval_expr(m.gadget_count[gadget]) * gadget_library[gadget].cost_ge
+            rng_sum += eval_expr(m.gadget_count[gadget]) * gadget_library[gadget].randomness_usage.get('rnd', [0,0])[1]
         print(f'MSKreg: {eval_expr(m.n_regs)}')
-        ge_sum += params.reg_cost * eval_expr(m.n_regs)
+        ge_sum += reg_cost * eval_expr(m.n_regs)
         print(f'Approx. area cost (GE): {float(ge_sum)}')
         print(f'#RNG bits {rng_sum}')
         print('Toffoli:',  len([x for x, *_ in m.toffoli_inst if eval_expr(x)]))
@@ -775,9 +773,10 @@ def generate_sbox(params: GeneratorParams):
         stats["Latency"] = params.latency
         stats["Use Toffoli"] = params.toffoli
         stats["Circuit"] = str(params.circuit)
-        stats["RNG Cost Per Bit"] = params.rng_cost_per_bit
+        stats["RNG Cost Per Bit"] = rng_cost_per_bit
+        stats["solve_time"] = solve_time
         module_name = params.circuit.stem
-        verilog, verilog_header = generate_verilog(c, params.latency, module_name, m, params.gadget_library, params.num_shares)
+        verilog, verilog_header = generate_verilog(c, params.latency, module_name, m, gadget_library, params.num_shares)
         params.out.parent.mkdir(exist_ok=True, parents=True)
         with open(params.out, 'w') as f:
             f.write(verilog)
@@ -810,8 +809,8 @@ def cli():
 def main():
     args = cli().parse_args()
     assert args.circuit.is_file(), f"Circuit file {args.circuit} does not exist."
-    gp = GeneratorParams.from_args(**vars(args))
-    generate_sbox(gp)
+    gp = Parameters(**vars(args))
+    generate_masked_circuit(gp)
 
 
 if __name__ == '__main__':

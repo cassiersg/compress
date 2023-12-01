@@ -15,7 +15,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_hpc2_cross #(parameter d=`DEFAULTSHARES) (ina, inb, rnd, clk, out);
+module MSKand_hpc2_cross #(parameter d=`DEFAULTSHARES, parameter have_inner=0) (ina, inb, rnd, clk, out);
 
 `include "MSKand_hpc2.vh"
 
@@ -55,63 +55,45 @@ for(i=0; i<d; i=i+1) begin: igen
     end
 end
 
-wire [d-1:0] not_ina;
-bin_NOT #(.W(d)) NOTin_not_ina (
-    .in(ina),
-    .out(not_ina)
-);
 for(i=0; i<d; i=i+1) begin: ParProdI
     wire [d-2:0] u, v, w;
-    wire red_u, red_w;
-    bin_redXOR #(.W(d-1)) redXORin_red_u(
-        .in(u),
-        .out(red_u)
-    );
-    bin_redXOR #(.W(d-1)) redXORin_red_w(
-        .in(w),
-        .out(red_w)
-    );
-    wire ru_xor_rw;
-    bin_XOR #(.W(1)) XORin_ru_xor_rw(
-        .ina(red_u),
-        .inb(red_w),
-        .out(ru_xor_rw)
-    );
-    assign out[i] = ru_xor_rw;
+    if (have_inner == 1) begin
+        wire inb_prev, aibi;
+        bin_REG #(.W(1)) REGin_inb_prev (
+            .clk(clk),
+            .in(inb[i]),
+            .out(inb_prev)
+        );
+        bin_REG #(.W(1)) REGin_aibi(
+            .clk(clk),
+            .in(ina[i] & inb_prev),
+            .out(aibi)
+        );
+        assign out[i] = aibi ^ ^u ^ ^w;
+    end else begin
+        assign out[i] = ^u ^ ^w;
+    end
     for(j=0; j<d; j=j+1) begin: ParProdJ
         if (i != j) begin: NotEq
             localparam j2 = j < i ?  j : j-1;
-            wire u_j2_comb;
-            bin_AND #(.W(1)) ANDin_u_j2_comb(
-                .ina(not_ina[i]),
-                .inb(rnd_mat_prev[i][j]),
-                .out(u_j2_comb)
-            );
-            wire v_j2_comb;
-            bin_XOR #(.W(1)) XORin_v2_comb(
-                .ina(inb[j]),
-                .inb(rnd_mat[i][j]),
-                .out(v_j2_comb)
-            );
-            wire w_j2_comb;
-            bin_AND #(.W(1)) ANDin_w_j2_comb(
-                .ina(ina[i]),
-                .inb(v[j2]),
-                .out(w_j2_comb)
-            );
+            //  u[j2] = Reg(not(a_i)*r_ij)
+            wire u_comb = ~ina[i] & rnd_mat_prev[i][j];
             bin_REG #(.W(1)) REGin_u(
                 .clk(clk),
-                .in(u_j2_comb),
+                .in(u_comb),
                 .out(u[j2])
             );
+            // w[j2] = Reg[a_i * Reg(b_j + r_ij)]
+            wire v_comb = inb[j] ^ rnd_mat[i][j];
             bin_REG #(.W(1)) REGin_v(
                 .clk(clk),
-                .in(v_j2_comb),
+                .in(v_comb),
                 .out(v[j2])
             );
+            wire w_comb = ina[i] & v[j2];
             bin_REG #(.W(1)) REGin_w(
                 .clk(clk),
-                .in(w_j2_comb),
+                .in(w_comb),
                 .out(w[j2])
             );
         end

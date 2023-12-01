@@ -57,93 +57,41 @@ for(i=0; i<d; i=i+1) begin: igen
     end
 end
 
-wire [d-1:0] not_ina;
-bin_NOT #(.W(d)) NOTin_not_ina (
-    .in(ina),
-    .out(not_ina)
-);
 for(i=0; i<d; i=i+1) begin: ParProdI
-    wire [d-2:0] u, v, w, uw;
-    
-    wire ru_xor_rw;
-    bin_redXOR #(.W(d-1)) redXORin_red_uw(
-        .in(uw),
-        .out(ru_xor_rw)
-    );
-    assign out[i] = ru_xor_rw;
+    wire [d-2:0] uw;
+    assign out[i] = ^uw;
     for(j=0; j<d; j=j+1) begin: ParProdJ
         if (i != j) begin: NotEq
             localparam j2 = j < i ?  j : j-1;
-            wire u_j2_comb;
-            // j2 == 0: u[j2] = Reg(not(a_i)*r_ij + a_i*b_i)
-            // j2 != 0: u[j2] = Reg(not(a_i)*r_ij)
+            wire u_comb, u;
+            wire w;
+            // j2 == 0: u = Reg(not(a_i)*r_ij + a_i*b_i)
+            // j2 != 0: u = Reg(not(a_i)*r_ij)
             if (j2 != 0) begin
-                bin_AND #(.W(1)) ANDin_u_j2_comb(
-                    .ina(not_ina[i]),
-                    .inb(rnd_mat_prev[i][j]),
-                    .out(u_j2_comb)
-                );
-                bin_OR #(.W(1)) ORuw(
-                    .ina(u[j2]),
-                    .inb(w[j2]),
-                    .out(uw[j2])
-                );
+                assign u_comb = ~ina[i] & rnd_mat_prev[i][j];
+                assign uw[j2] = u | w;
             end else begin
-                wire nai_rij, aibi, aibici;
-                
-                bin_AND #(.W(1)) ANDnai_rij(
-                    .ina(not_ina[i]),
-                    .inb(rnd_mat_prev[i][j]),
-                    .out(nai_rij)
-                );
-                bin_AND #(.W(1)) ANDaibi(
-                    .ina(ina[i]),
-                    .inb(inb_prev[i]),
-                    .out(aibi)
-                );
-                bin_XOR #(.W(1)) XORtoffoli(
-                    .ina(aibi),
-                    .inb(inc[i]),
-                    .out(aibici)
-                );
-                bin_XOR #(.W(1)) XORin_u_j2_comb (
-                    .ina(nai_rij),
-                    .inb(aibici),
-                    .out(u_j2_comb)
-                );
-                bin_XOR #(.W(1)) XORuw(
-                    .ina(u[j2]),
-                    .inb(w[j2]),
-                    .out(uw[j2])
-                );
+                assign u_comb = (~ina[i] & rnd_mat_prev[i][j]) ^ (ina[i] & inb_prev[i]) ^ inc[i];
+                assign uw[j2] = u ^ w;
             end
             bin_REG #(.W(1)) REGin_u(
                 .clk(clk),
-                .in(u_j2_comb),
-                .out(u[j2])
+                .in(u_comb),
+                .out(u)
             );
-            // w[j2] = Reg[a_i * Reg(b_j + r_ij)]
-            wire v_j2_comb;
-            bin_XOR #(.W(1)) XORin_v2_comb(
-                .ina(inb[j]),
-                .inb(rnd_mat[i][j]),
-                .out(v_j2_comb)
-            );
+            // w = Reg[a_i * Reg(b_j + r_ij)]
+            wire v_comb = inb[j] ^ rnd_mat[i][j];
+            wire v;
             bin_REG #(.W(1)) REGin_v(
                 .clk(clk),
-                .in(v_j2_comb),
-                .out(v[j2])
+                .in(v_comb),
+                .out(v)
             );
-            wire w_j2_comb;
-            bin_AND #(.W(1)) ANDin_w_j2_comb(
-                .ina(ina[i]),
-                .inb(v[j2]),
-                .out(w_j2_comb)
-            );
+            wire w_comb = ina[i] & v;
             bin_REG #(.W(1)) REGin_w(
                 .clk(clk),
-                .in(w_j2_comb),
-                .out(w[j2])
+                .in(w_comb),
+                .out(w)
             );
         end
     end

@@ -26,7 +26,7 @@ The script `scripts/generate_adder_circuit.py` has been used to generate the add
 
 Usage:
 ```
-python3 generate_adder_circuit.py -n <bit_width> --type <TYPE> --out <OUTPATH>
+python3 scripts/generate_adder_circuit.py -n <bit_width> --type <TYPE> --out <OUTPATH>
 ```
 where
 * `-n <bit_width>` refers to the input bits of the summands
@@ -39,6 +39,10 @@ where
   * `sklansky`: Sklansky adder as described in https://www.mdpi.com/2076-3417/12/5/2274
   * `BK`: Brent-Kung adder as described in https://www.mdpi.com/2076-3417/12/5/2274
 
+
+## Contents
+
+TODO
 
 ## License
 

@@ -1,7 +1,7 @@
 
 WORK ?= ./work
 CIRCUIT ?= circuits/ascon.txt
-GADGETS_CONFIG ?= ./gadget_library/all_gadgets.toml
+GADGETS_CONFIG ?= ./gadget_library/gadgets_opt.toml
 LATS ?=4 5 6
 DS ?= 2 3 4 5
 
@@ -12,8 +12,9 @@ export VINCLUDE=gadget_library/MSK
 
 CIRCUIT_NAME=$(patsubst %.txt,%,$(notdir $(CIRCUIT)))
 
+PYTHON ?= python3
 SCRIPT_DIR=scripts
-PY=python3 $(SCRIPT_DIR)/
+COMPRESS_SCRIPT=$(SCRIPT_DIR)/compress.py
 SYNTH_SCRIPT=synthesis/synth.tcl
 
 GADGETS=$(basename $(notdir $(wildcard gadget_library/MSK/*.v)))
@@ -32,7 +33,7 @@ $(call GADGET_AREA_FILE,%,$(1)): gadget_library/MSK/%.v $(SYNTH_SCRIPT)
 	yosys -qq -c $(SYNTH_SCRIPT) -l  $$(dir $$@)/synth.log
 
 $(call GADGETS_AREA_CSV,$(1)): $(foreach G,$(GADGETS),$(call GADGET_AREA_FILE,$G,$(1)))
-	$(PY)summarize_gadget_area.py --outcsv=$$@ $$^
+	$(PYTHON) $(SCRIPT_DIR)/summarize_gadget_area.py --outcsv=$$@ $$^
 
 endef
 $(foreach D,$(DS),$(eval $(call rules_gadget_area,$D)))
@@ -46,7 +47,7 @@ $(WORK)/rng_area/nbits_%/area.json: gadget_library/RNG/trivium/*.v
 
 RNG_AREA = $(WORK)/rng_area/area_ge.txt
 $(RNG_AREA): $(foreach N,32 512,$(WORK)/rng_area/nbits_$N/area.json)
-	$(PY)rng_area.py --out=$@ $^
+	$(PYTHON) $(SCRIPT_DIR)/rng_area.py --out=$@ $^
 
 
 circuit_dir = $(WORK)/circuits/$(CIRCUIT_NAME)_d$(1)_l$(2)
@@ -57,9 +58,9 @@ CIRCUIT_DIRS = $(foreach D,$(DS),$(foreach L,$(LATS),$(call circuit_dir,$D,$L)))
 
 # COMPRESS
 define rule_compress
-$(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(SCRIPT_DIR)/compress.py $(RNG_AREA) $(call GADGETS_AREA_CSV,$(1))
+$(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(COMPRESS_SCRIPT) $(RNG_AREA) $(call GADGETS_AREA_CSV,$(1))
 	@mkdir -p $$(dir $$@)
-	$(PY)compress.py \
+	$(PYTHON) $(COMPRESS_SCRIPT) \
 		--num-shares $(1) --latency=$(2) \
 		--circuit=$$< \
 		--out=$$@ --outh=$$@h \
@@ -105,7 +106,7 @@ ALL_FLOWS=$(addsuffix /struct_simu/success,$(CIRCUIT_DIRS))
 
 AREA_REPORT = $(WORK)/$(CIRCUIT_NAME)_area.csv
 $(AREA_REPORT): $(ALL_AREAS) | $(ALL_FLOWS)
-	$(PY)summarize_design_area.py --outcsv=$@ $^
+	$(PYTHON) $(SCRIPT_DIR)/summarize_design_area.py --outcsv=$@ $^
 
 area: $(AREA_REPORT)
 

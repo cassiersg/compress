@@ -55,46 +55,15 @@ for(i=0; i<d; i=i+1) begin: igen
     end
 end
 
-wire [d-1:0] not_ina;
-bin_NOT #(.W(d)) NOTin_not_ina (
-    .in(ina),
-    .out(not_ina)
-);
 for(i=0; i<d; i=i+1) begin: ParProdI
-    wire [d-2:0] u, v, w, uw;
-    assign uw = u | w;
-    bin_OR #(.W(d-1)) ORuw(
-        .ina(u),
-        .inb(w),
-        .out(uw)
-    );
-    wire ru_xor_rw;
-    bin_redXOR #(.W(d-1)) redXORin_red_uw(
-        .in(uw),
-        .out(ru_xor_rw)
-    );
-    assign out[i] = ru_xor_rw;
+    wire [d-2:0] u, v, w;
+    assign out[i] = ^(u | w);
     for(j=0; j<d; j=j+1) begin: ParProdJ
         if (i != j) begin: NotEq
             localparam j2 = j < i ?  j : j-1;
-            wire u_j2_comb;
-            bin_AND #(.W(1)) ANDin_u_j2_comb(
-                .ina(not_ina[i]),
-                .inb(rnd_mat_prev[i][j]),
-                .out(u_j2_comb)
-            );
-            wire v_j2_comb;
-            bin_XOR #(.W(1)) XORin_v2_comb(
-                .ina(inb[j]),
-                .inb(rnd_mat[i][j]),
-                .out(v_j2_comb)
-            );
-            wire w_j2_comb;
-            bin_AND #(.W(1)) ANDin_w_j2_comb(
-                .ina(ina[i]),
-                .inb(v[j2]),
-                .out(w_j2_comb)
-            );
+            wire u_j2_comb = ~ina[i] & rnd_mat_prev[i][j];
+            wire v_j2_comb = inb[j] ^ rnd_mat[i][j];
+            wire w_j2_comb = ina[i] & v[j2];
             bin_REG #(.W(1)) REGin_u(
                 .clk(clk),
                 .in(u_j2_comb),
