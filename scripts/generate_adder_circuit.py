@@ -221,10 +221,21 @@ def print_KS(n, f):
 
     levels = int(np.ceil(np.log2(n)))
 
+    var_map = dict()
+    def var(x):
+        return var_map.setdefault(x, x)
+    def assign(x, y):
+        var_map[x] = var(y)
+    def write_op(dest, op1, op2, op):
+        f.write(f'{var(dest)} = {var(op1)} {op} {var(op2)}\n')
+
+    assign('P0_0', 'o0')
+    f.write(f'G{levels}_{n-1}', f'o{n}')
+
     # Initialization - level 0
     for i in range(0, n):
-        f.write(f"P0_{i} = i{i} + i{n+i}\n")
-        f.write(f"G0_{i} = i{i} & i{n+i}\n")
+        write_op(var(f"P0_{i}"), var(f'i{i}'), var(f'i{n+i}'), '+')
+        write_op(var(f"G0_{i}"), var(f'i{i}'), var(f'i{n+i}'), '&')
 
     # Further levels
     t_cnt = 0
@@ -234,23 +245,21 @@ def print_KS(n, f):
 
         # Green
         for i in range(0, distance):
-            f.write(f"G{level}_{i} = G{level-1}_{i}\n")
+            assign(f"G{level}_{i}", f"G{level-1}_{i}")
 
         # Orange
         for i in range(distance, n):
             
             if not(0 <= i < distance_next):
-                f.write(f"P{level}_{i} = P{level-1}_{i} & P{level-1}_{i-distance}\n")
+                write_op(f"P{level}_{i}", f'P{level-1}_{i}', f'P{level-1}_{i-distance}', '&')
 
-            f.write(f"t{t_cnt} = P{level-1}_{i} & G{level-1}_{i-distance}\n")
-            f.write(f"G{level}_{i} = t{t_cnt} + G{level-1}_{i}\n")
+            write_op(f"t{t_cnt}", f'P{level-1}_{i}', f'G{level-1}_{i-distance}', '&')
+            write_op(f"G{level}_{i}", f't{t_cnt}', f'G{level-1}_{i}', '+')
             t_cnt+=1
     
     # Postprocessing
-    f.write(f"o0 = P0_0\n")
     for i in range(1, n):
-        f.write(f"o{i} = P0_{i} + G{levels}_{i-1}\n")
-    f.write(f"o{n} = G{levels}_{n-1}\n")
+        write_op(f"o{i}", f'P0_{i}', f'G{levels}_{i-1}', '+')
 
 
 # [KSmod] Generates binary adder (koggle stone)  mod (2^n)
@@ -276,10 +285,20 @@ def print_KSmod(n, f):
 
     levels = int(np.ceil(np.log2(n)))
 
+    var_map = dict()
+    def var(x):
+        return var_map.setdefault(x, x)
+    def assign(x, y):
+        var_map[x] = var(y)
+    def write_op(dest, op1, op2, op):
+        f.write(f'{var(dest)} = {var(op1)} {op} {var(op2)}\n')
+
+    assign('P0_0', 'o0')
+
     # Initialization - level 0
     for i in range(0, n):
-        f.write(f"P0_{i} = i{i} + i{n+i}\n")
-        f.write(f"G0_{i} = i{i} & i{n+i}\n")
+        write_op(f"P0_{i}", f'i{i}', f'i{n+i}', '+')
+        write_op(f"G0_{i}", f'i{i}', f'i{n+i}', '&')
 
     # Further levels
     t_cnt = 0
@@ -289,22 +308,21 @@ def print_KSmod(n, f):
 
         # Green
         for i in range(0, distance):
-            f.write(f"G{level}_{i} = G{level-1}_{i}\n")
+            assign(f"G{level}_{i}", f"G{level-1}_{i}")
 
         # Orange
         for i in range(distance, n):
             
             if not(0 <= i < distance_next):
-                f.write(f"P{level}_{i} = P{level-1}_{i} & P{level-1}_{i-distance}\n")
+                write_op(f'P{level}_{i}', f'P{level-1}_{i}', f'P{level-1}_{i-distance}', '&')
 
-            f.write(f"t{t_cnt} = P{level-1}_{i} & G{level-1}_{i-distance}\n")
-            f.write(f"G{level}_{i} = t{t_cnt} + G{level-1}_{i}\n")
+            write_op(f't{t_cnt}', f'P{level-1}_{i}', f'G{level-1}_{i-distance}', '&')
+            write_op(f'G{level}_{i}', f't{t_cnt}', f'G{level-1}_{i}', '+')
             t_cnt+=1
     
     # Postprocessing
-    f.write(f"o0 = P0_0\n")
     for i in range(1, n):
-        f.write(f"o{i} = P0_{i} + G{levels}_{i-1}\n")
+        write_op(f'o{i}', f'P0_{i}', f'G{levels}_{i-1}', '+')
 
 
 # [sklansky] Generates binary adder (sklansky)   mod (2^n)
@@ -330,10 +348,20 @@ def print_sklanskymod(n, f):
 
     levels = int(np.ceil(np.log2(n)))
 
+    var_map = dict()
+    def var(x):
+        return var_map.setdefault(x, x)
+    def assign(x, y):
+        var_map[x] = var(y)
+    def write_op(dest, op1, op2, op):
+        f.write(f'{var(dest)} = {var(op1)} {op} {var(op2)}\n')
+
+    assign('P0_0', 'o0')
+
     # Initialization - level 0
     for i in range(0, n):
-        f.write(f"P0_{i} = i{i} + i{n+i}\n")
-        f.write(f"G0_{i} = i{i} & i{n+i}\n")
+        write_op(f'P0_{i}', f'i{i}', f'i{n+i}', '+')
+        write_op(f'G0_{i}', f'i{i}', f'i{n+i}', '&')
 
     # Further levels
     step = 1
@@ -343,21 +371,20 @@ def print_sklanskymod(n, f):
             skip = ((i // step)) % 2 == 0
             if skip:
                 if i >= (2**level):
-                    f.write(f"P{level}_{i} = P{level-1}_{i}\n")
-                f.write(f"G{level}_{i} = G{level-1}_{i}\n")
+                    assign(f'P{level}_{i}', f'P{level-1}_{i}')
+                assign(f'G{level}_{i}', f'G{level-1}_{i}')
             else:
                 prev = ((i // step)) * step - 1
                 if i >= (2**level):
-                    f.write(f"P{level}_{i} = P{level-1}_{i} & P{level-1}_{prev}\n")
-                f.write(f"t{t_cnt} = P{level-1}_{i} & G{level-1}_{prev}\n")
-                f.write(f"G{level}_{i} = t{t_cnt} + G{level-1}_{i}\n")
+                    write_op(f'P{level}_{i}', f'P{level-1}_{i}', f'P{level-1}_{prev}', '&')
+                write_op(f't{t_cnt}', f'P{level-1}_{i}', f'G{level-1}_{prev}', '&')
+                write_op(f'G{level}_{i}', f't{t_cnt}', f'G{level-1}_{i}', '+')
                 t_cnt+=1
         step = step * 2
     
     # Postprocessing
-    f.write(f"o0 = P0_0\n")
     for i in range(1, n):
-        f.write(f"o{i} = P0_{i} + G{levels}_{i-1}\n")
+        write_op(f'o{i}', f'P0_{i}', f'G{levels}_{i-1}', '+')
     #f.write(f"o{n} = G{levels}_{n-1}\n")
 
 
@@ -547,6 +574,15 @@ def print_BKmod(n, f):
     f.write("\n")
     f.write("\n")
 
+    var_map = dict()
+    def var(x):
+        return var_map.setdefault(x, x)
+    def assign(x, y):
+        var_map[x] = var(y)
+    def write_op(dest, op1, op2, op):
+        f.write(f'{var(dest)} = {var(op1)} {op} {var(op2)}\n')
+
+    assign('P0_0', 'o0')
 
     # valid-map
     valid = {}
@@ -558,8 +594,8 @@ def print_BKmod(n, f):
 
     # Initialization - level 0
     for i in range(0, n):
-        f.write(f"P0_{i} = i{i} + i{n+i}\n")
-        f.write(f"G0_{i} = i{i} & i{n+i}\n")
+        write_op(f'P0_{i}', f'i{i}', f'i{n+i}', '+')
+        write_op(f'G0_{i}', f'i{i}', f'i{n+i}', '&')
         valid[0][i] = True
 
     t_cnt = 0
@@ -570,16 +606,16 @@ def print_BKmod(n, f):
         prev = find_valid_idx(valid, level-1, 0, n)
         while prev != None:
             if (prev+1) == n: 
-                f.write(f"P{level}_{prev} = P{level-1}_{prev}\n")
-                f.write(f"G{level}_{prev} = G{level-1}_{prev}\n")
+                assign(f'P{level}_{prev}', f'P{level-1}_{prev}')
+                assign(f'G{level}_{prev}', f'G{level-1}_{prev}')
                 valid[level][prev] = True
                 prev = None
             else: 
                 inp = find_valid_idx(valid, level-1, prev+1, n)
                 if not((n == next_power_of_2(n)) and ((2**level)-1) == inp):
-                    f.write(f"P{level}_{inp} = P{level-1}_{inp} & P{level-1}_{prev}\n")
-                f.write(f"t{t_cnt} = P{level-1}_{inp} & G{level-1}_{prev}\n")
-                f.write(f"G{level}_{inp} = t{t_cnt} + G{level-1}_{inp}\n")
+                    write_op(f'P{level}_{inp}', f'P{level-1}_{inp}', f'P{level-1}_{prev}', '&')
+                write_op(f't{t_cnt}', f'P{level-1}_{inp}', f'G{level-1}_{prev}', '&')
+                write_op(f'G{level}_{inp}', f't{t_cnt}', f'G{level-1}_{inp}', '+')
                 t_cnt+=1
                 valid[level][inp] = True
                 prev = find_valid_idx(valid, level-1, inp+1, n)
@@ -588,7 +624,7 @@ def print_BKmod(n, f):
     step = 2**(level-2)
     root_idx = next_power_of_2(n)//2 - 1
     last_valid_level = find_valid_level(valid, root_idx)
-    f.write(f"G{level}_{root_idx} = G{last_valid_level}_{root_idx}\n")
+    assign(f'G{level}_{root_idx}', f'G{last_valid_level}_{root_idx}')
     valid[level][root_idx] = True
 
     while step != 0:
@@ -601,21 +637,20 @@ def print_BKmod(n, f):
                 continue
             if is_valid(valid, level-1, prev):
                 last_valid_level = find_valid_level(valid, inp)
-                f.write(f"t{t_cnt} = P{last_valid_level}_{inp} & G{level-1}_{prev}\n")
-                f.write(f"G{level}_{inp} = t{t_cnt} + G{last_valid_level}_{inp}\n")
+                write_op(f't{t_cnt}', f'P{last_valid_level}_{inp}', f'G{level-1}_{prev}', '&')
+                write_op(f'G{level}_{inp}', f't{t_cnt}', f'G{last_valid_level}_{inp}', '+')
                 t_cnt+=1
                 valid[level][inp] = True
             else:
                 last_valid_level = find_valid_level(valid, inp)
-                f.write(f"G{level}_{inp} = G{last_valid_level}_{inp}\n")
+                assign(f'G{level}_{inp}', f'G{last_valid_level}_{inp}')
                 valid[level][inp] = True
         step = step // 2
 
     # Postprocessing
-    f.write(f"o0 = P0_0\n")
     for i in range(1, n):
         last_valid_level = find_valid_level(valid, i-1)
-        f.write(f"o{i} = P0_{i} + G{last_valid_level}_{i-1}\n")
+        write_op(f'o{i}', f'P0_{i}', f'G{last_valid_level}_{i-1}', '+')
     #last_valid_level = find_valid_level(valid, n-1)
     #f.write(f"o{n} = G{last_valid_level}_{n-1}\n")
 
