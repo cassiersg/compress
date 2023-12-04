@@ -25,7 +25,7 @@ module MSKand_hpc2o2_tof #(parameter d=`DEFAULTSHARES) (ina, inb, inb_prev, inc,
 (* fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] inb_prev;
 (* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc2rnd *) input [hpc2rnd-1:0] rnd;
 (* fv_type = "clock" *) input clk;
-(* fv_type = "random", fv_type = "sharing", fv_latency = 2 *) output [d-1:0] out;
+(* fv_type = "sharing", fv_latency = 2 *) output [d-1:0] out;
                                       
 genvar i,j;
 

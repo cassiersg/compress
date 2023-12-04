@@ -39,7 +39,7 @@ always @(posedge clk) begin
 end
 
 
-wire [4-1:0] sel = {a1 & b1, a1 ^ ~b1, ~a1 & b1, ~a1 & ~b1};
+wire [4-1:0] sel = {a1 & b1, a1 & ~b1, ~a1 & b1, ~a1 & ~b1};
 reg [4-1:0] sel_d;
 always @(posedge clk) begin
     sel_d <= sel;

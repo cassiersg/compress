@@ -42,7 +42,7 @@ always @(posedge clk) begin
     a1 <= ina[1];
     b1 <= inb[1];
 end
-wire [4-1:0] sel = {a1 & b1, a1 ^ ~b1, ~a1 & b1, ~a1 & ~b1};
+wire [4-1:0] sel = {a1 & b1, a1 & ~b1, ~a1 & b1, ~a1 & ~b1};
 
 reg [4-1:0] filtered;
 always @(posedge clk) begin

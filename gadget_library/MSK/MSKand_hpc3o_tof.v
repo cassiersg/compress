@@ -26,7 +26,7 @@ localparam mat_rnd = hpc3rnd/2;
 (* fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inc;
 (* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *) input [hpc3rnd-1:0] rnd;
 (* fv_type = "clock" *) input clk;
-(* fv_type = "random", fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
+(* fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
                                       
 genvar i,j;
 
