@@ -159,8 +159,8 @@ def parse_cmd(cmd):
         srcs = opref.split('&')
         idstrs.append(idref)
         ops.append('and({},{})'.format(srcs[0],srcs[1]))
-    elif '~' in opref:
-        srcs = opref.split('~')
+    elif '!' in opref:
+        srcs = opref.split('!')
         idstrs.append(idref)
         ops.append('not({})'.format(srcs[1]))
     elif '?' in opref and ':' in opref:
@@ -496,8 +496,9 @@ def parse_circuit(filename):
                 o_map[out] = f'gen__{out}'
         elif l:
             new_l = l
-            for o, om in o_map.items():
-                new_l = new_l.replace(o, om)
+            var_label = l.split("=")[0].replace(" ","")
+            if var_label in o_map.keys():
+                new_l = new_l.replace(var_label,o_map[var_label])
             cleaned_lines.append(new_l)
     for l in cleaned_lines:
         list_of_node = parse_line(l)
@@ -831,7 +832,7 @@ def create_verilog_template_entry(var,iotype,def_clk='clk',def_en='enable',def_r
                     var.op.src0
                     )
         elif var.op.op=='not':
-            return "assign {} = ~{};\n".format(
+            return "assign {} = !{};\n".format(
                     var.id,
                     var.op.src0
                     )
