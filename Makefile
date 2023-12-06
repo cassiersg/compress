@@ -69,6 +69,8 @@ $(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(COMPRESS_SCRIPT) $(RNG_AREA
 		--gadgets-config=$(GADGETS_CONFIG) \
 		--time-limit 3600 \
 		> $$(dir $$@)/compress.log
+	cp $$@ $$(dir $$@)/$(CIRCUIT_NAME).v
+	cp $$@h $$(dir $$@)/$(CIRCUIT_NAME).vh
 endef
 $(foreach D,$(DS),$(foreach L,$(LATS),$(eval $(call rule_compress,$D,$L))))
 

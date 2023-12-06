@@ -587,7 +587,7 @@ class VerilogGenerator:
                     for x in self.circuit.inputs
                     ]
         output_decls = [
-                    ('(* fv_type="sharing", fv_latency=0, fv_count=1 *)', f'output [d-1:0] {x};')
+                    (f'(* fv_type="sharing", fv_latency={self.latency}, fv_count=1 *)', f'output [d-1:0] {x};')
                     for x in self.circuit.outputs
                     ]
         rnd_decls = [
