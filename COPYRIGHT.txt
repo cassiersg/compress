@@ -1,0 +1,18 @@
+COMPRESS is Copyright (c) 2023 Graz University of Technology and UCLouvain.
+
+Source location: https://github.com/cassiersg/compress
+
+Authors:
+Gaëtan Cassiers
+Barbara Gigerl
+Charles Momin
+Rishub Nagpal
+
+COMPRESS is provided to you under the conditions given in <LICENSE.txt> included
+in the source distribution and available at
+<https://github.com/cassiersg/compress>.
+
+Unless noted otherwise in files or directories, the content of this repository
+(compress) is licensed under the Apache license, version 2.0 (LICENSE-2.0.txt).
+
+For an licensing or copyright enquiries, please contact <info@simple-crypto.dev>.
