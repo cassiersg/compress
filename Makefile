@@ -70,24 +70,33 @@ $(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(COMPRESS_SCRIPT) $(RNG_AREA
 		--time-limit 3600 \
 		> $$(dir $$@)/compress.log
 	cp $$@ $$(dir $$@)/$(CIRCUIT_NAME).v
-	cp $$@h $$(dir $$@)/$(CIRCUIT_NAME).vh
+	-cp $$@h $$(dir $$@)/$(CIRCUIT_NAME).vh
 endef
 $(foreach D,$(DS),$(foreach L,$(LATS),$(eval $(call rule_compress,$D,$L))))
 
 # SIMULATIONS
-SIMU_CMD = \
-	TOPLEVEL=$(CIRCUIT_NAME) CIRCUIT_FILE_PATH=$(CIRCUIT) LATENCY=$(call circuit_latency,$*) \
-	$(MAKE) -f simu.mk WORKDIR=$(dir $@) > $@ || exit 0
 
 # behavioral simu
 $(addsuffix /beh_simu/simu.log,$(CIRCUIT_DIRS)) : %/beh_simu/simu.log : %/design.v
 	@mkdir -p $(dir $@)
-	IVERILOG_WARNINGS="-Wimplicit -Wportbind -Wselect-range -Winfloop" VERILOG_SOURCES="$(SYNTH_SRCS) $<" $(SIMU_CMD)
+	IVERILOG_WARNINGS="-Wimplicit -Wportbind -Wselect-range -Winfloop" \
+					  VERILOG_SOURCES="$(SYNTH_SRCS) $<" \
+					  STATS=$(dir $@)/../stats.json \
+					  TOPLEVEL=$(CIRCUIT_NAME) \
+					  CIRCUIT_FILE_PATH=$(CIRCUIT) \
+					  WORKDIR=$(dir $@) \
+					  $(MAKE) -f simu.mk > $@ || exit 0
 
 # structural simu
 $(addsuffix /struct_simu/simu.log,$(CIRCUIT_DIRS)): %/struct_simu/simu.log: %/synth/design.v
 	@mkdir -p $(dir $@)
-	VERILOG_SOURCES="$< $(VERILOG_CELLS)" $(SIMU_CMD)
+	VERILOG_SOURCES="$< $(VERILOG_CELLS)" \
+					STATS=$(dir $@)/../stats.json \
+					  TOPLEVEL=$(CIRCUIT_NAME) \
+					  CIRCUIT_FILE_PATH=$(CIRCUIT) \
+					  WORKDIR=$(dir $@) \
+					  $(MAKE) -f simu.mk > $@ || exit 0
+
 
 # Mark simulation success (simulation always return a zero exit code).
 %/success: %/simu.log

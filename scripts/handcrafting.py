@@ -26,6 +26,7 @@ Improving automated masking in hardware with manual optimizations.
 """
 
 import argparse
+import json
 from pathlib import Path
 
 def parse_args():
@@ -47,6 +48,7 @@ def parse_args():
             required=True,
             help="Output file."
             )
+    parser.add_argument("--outstats", type=Path, required=True, help="Output stats json file.")
     parser.add_argument(
             "--gen-enable",
             action='store_true',
@@ -1410,7 +1412,15 @@ def create_mux_ctrl(circuit,outs,ins):
     resolve_len_circuit(circuit)
     evaluate_latency_circuit(circuit,outs)
 
-def build_transformed_verilog_netlist(toplevel_fn,convdic,module_name,gen_ctrl,gen_enable,outfile):
+def write_stats(circuit, outs, ins, outstats):
+    stats = {
+        "RNG hpc2": sum(int(circuit[inp].lenstr.split('*')[0]) for inp in ins if circuit[inp].dtype == 'random'),
+        "Latency": circuit[outs[0]].time,
+    }
+    with open(outstats, 'w') as f:
+        json.dump(stats, f)
+
+def build_transformed_verilog_netlist(toplevel_fn,convdic,module_name,gen_ctrl,gen_enable,outfile,outstats):
     print("### START PROCESS ###")
     print('File: {}'.format(toplevel_fn))
     # Parse the top level circuit
@@ -1473,6 +1483,8 @@ def build_transformed_verilog_netlist(toplevel_fn,convdic,module_name,gen_ctrl,g
 
     # Create verilog netlist
     create_verilog_netlist(circ,outs,ins,mod_name=module_name,gen_enable=gen_enable,outfile=outfile) 
+
+    write_stats(circ, outs, ins, outstats)
     
 
 if __name__ == '__main__':
@@ -1490,6 +1502,7 @@ if __name__ == '__main__':
             gen_ctrl=args.gen_ctrl,
             gen_enable=args.gen_enable,
             outfile=args.out,
+            outstats=args.outstats,
             ) 
 
 

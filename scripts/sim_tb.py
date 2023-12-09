@@ -1,5 +1,6 @@
 
 import itertools as it
+import json
 import operator
 import os
 import random
@@ -94,7 +95,10 @@ class DutWrapper:
 @cocotb.test()
 async def test_dut(dut):
     # precompute all possible input/output states
-    latency = int(os.environ["LATENCY"])
+    stats_file = os.environ["STATS"]
+    with open(stats_file) as f:
+        stats = json.load(f)
+    latency = stats['Latency']
     circuit = NewCircuit(os.environ["CIRCUIT_FILE_PATH"])
     dut_wrapper = DutWrapper(circuit, dut)
 

@@ -6,7 +6,7 @@ export SYNTH_SRCS
 export VINCLUDE
 export VERILOG_SOURCES
 export TOPLEVEL
-export LATENCY
+export STATS
 export NUM_SHARES
 export CIRCUIT_FILE_PATH
 #
