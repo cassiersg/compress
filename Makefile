@@ -116,8 +116,8 @@ $(ALL_AREAS): %/area.json: %/design.v
 ALL_FLOWS=$(addsuffix /struct_simu/success,$(CIRCUIT_DIRS))
 
 AREA_REPORT = $(WORK)/$(CIRCUIT_NAME)_area.csv
-$(AREA_REPORT): $(ALL_AREAS) | $(ALL_FLOWS)
-	$(PYTHON) $(SCRIPT_DIR)/summarize_design_area.py --outcsv=$@ $^
+$(AREA_REPORT): $(ALL_FLOWS)
+	$(PYTHON) $(SCRIPT_DIR)/summarize_design_area.py --outcsv=$@ $(ALL_AREAS)
 
 area: $(AREA_REPORT)
 
