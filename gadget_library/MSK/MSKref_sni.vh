@@ -14,7 +14,7 @@ begin
 if (d==1) _ref_nrnd = 1; // Hack to avoid 0-width signals.
 else if (d==2 || d==3) _ref_nrnd = d-1;
 else if (d==4 || d == 5) _ref_nrnd = d;
-// Make it fail for d >= 6: little use, and makes latency description more complex.
+// Make it fail for d >= 6: little use, and makes latency description more complex, we therefore do not implement them here.
 //else if (d==6) _ref_nrnd = d+1;
 //else if (d==7) _ref_nrnd = d+2;
 //else if (d==8 || d==9) _ref_nrnd = d+3;
@@ -26,3 +26,13 @@ end
 endfunction
 
 localparam ref_n_rnd = _ref_nrnd(d);
+
+function integer _ref_rndlat(input integer d);
+begin
+if (d==1 || d == 2) _ref_rndlat = 0;
+else if (d==3 || d==4 || d == 5) _ref_rndlat = 1;
+else _ref_rndlat = 2;
+end
+endfunction
+
+localparam ref_rndlat = _ref_rndlat(d);
