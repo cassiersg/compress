@@ -131,7 +131,7 @@ class Circuit:
     def _add_computation(self, computation: Computation):
         for res in computation.outputs:
             assert res not in self.all_vars
-            self.var_comp[res] = len(self.var_comp)
+            self.var_comp[res] = len(self.computations)
         self.computations.append({computation})
 
     def _check_all_defined(self):
@@ -177,7 +177,7 @@ class Circuit:
         RE_RESULTS = r"[(]?\s*(?P<results>(?:\w+\s*,\s*)*\w+)\s*[)]?\s*"
         RE_OP_BIN = r"=\s*(?P<op1>\w+)\s*(?P<op>[+#&])\s*(?P<op2>\w+)"
         RE_OP_UN = r"=\s*(?P<op>[!])\s*(?P<op1>\w+)"
-        RE_FN = r"=\s*(?P<fn>\w+)\s*[(]\s*(?P<ops>(?:\w+\s*,\s*)\w+)\s*[)]"
+        RE_FN = r"=\s*(?P<fn>\w+)\s*[(]\s*(?P<ops>(?:\w+\s*,\s*)*\w+)\s*[)]"
         re_op_bin = re.compile(RE_RES + RE_OP_BIN)
         re_op_un = re.compile(RE_RES + RE_OP_UN)
         re_fn = re.compile(RE_RESULTS + RE_FN)
@@ -346,6 +346,7 @@ class GateImpl:
     randomness_usage: Mapping[str, Tuple[int, int, str]]
     area_ge: float
     rng_area_ge: float
+    outputs: list[str]
 
     @property
     def has_clk(self) -> bool:
@@ -683,12 +684,14 @@ def gen_gate_impls(
                 rnd_req_fn(num_shares),
                 rnd_req_str,
             )
+        outputs = [o["name"] for o in gadget.get("output", [{"name": "out"}])]
         gate = GateImpl(
             name=gadget["name"],
             latencies=latencies,
             randomness_usage=randomness_usage,
             area_ge=areas[gadget["name"]],
             rng_area_ge=m,
+            outputs=outputs,
         )
         gate_impls[Operation.from_symbol(gadget["operation"])].append(gate)
 
@@ -964,7 +967,11 @@ class VerilogGenerator:
                 ports["out"] = late_tmps[0][0]
             else:  # Non-Toffoli gadget
                 gadget_name = gadget
-                ports["out"] = f"{v}_{l}"
+                for co, go in zip(
+                    computation.outputs, self.gadget_library[gadget].outputs
+                ):
+                    ports[go] = f"{co}_{l}"
+                # ports["out"] = f"{v}_{l}"
             ports.update(
                 (
                     name,
