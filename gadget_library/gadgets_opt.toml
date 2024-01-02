@@ -262,3 +262,141 @@ latency = 0
 [[gadget.port]]
 name = 'inb'
 latency = 0
+
+### G4-16 MUL ###
+
+[[gadget]]
+name = "MSKg4mul_hpc1"
+operation = 'G4_mul'
+[[gadget.port]]
+name = 'ina0'
+latency = 1
+[[gadget.port]]
+name = 'ina1'
+latency = 1
+[[gadget.port]]
+name = 'inb0'
+latency = 2
+[[gadget.port]]
+name = 'inb1'
+latency = 2
+[[gadget.output]]
+name = 'out0'
+[[gadget.output]]
+name = 'out1'
+[[gadget.random_port]]
+name = 'rnd'
+latency = 2
+n_bits = '2*HPC1'
+
+[[gadget]]
+name = "MSKg16mul_hpc1"
+operation = 'G16_mul'
+[[gadget.port]]
+name = 'ina0'
+latency = 1
+[[gadget.port]]
+name = 'ina1'
+latency = 1
+[[gadget.port]]
+name = 'ina2'
+latency = 1
+[[gadget.port]]
+name = 'ina3'
+latency = 1
+[[gadget.port]]
+name = 'inb0'
+latency = 2
+[[gadget.port]]
+name = 'inb1'
+latency = 2
+[[gadget.port]]
+name = 'inb2'
+latency = 2
+[[gadget.port]]
+name = 'inb3'
+latency = 2
+[[gadget.output]]
+name = 'out0'
+[[gadget.output]]
+name = 'out1'
+[[gadget.output]]
+name = 'out2'
+[[gadget.output]]
+name = 'out3'
+[[gadget.random_port]]
+name = 'rnd'
+latency = 2
+n_bits = '4*HPC1'
+
+### MUL G4-16 HPC3 ###
+
+[[gadget]]
+name = "MSKg4mul_hpc3"
+operation = 'G4_mul'
+[[gadget.port]]
+name = 'ina0'
+latency = 1
+has_prev = true
+[[gadget.port]]
+name = 'ina1'
+latency = 1
+has_prev = true
+[[gadget.port]]
+name = 'inb0'
+latency = 1
+[[gadget.port]]
+name = 'inb1'
+latency = 1
+[[gadget.output]]
+name = 'out0'
+[[gadget.output]]
+name = 'out1'
+[[gadget.random_port]]
+name = 'rnd'
+latency = 1
+n_bits = '2*HPC3'
+
+[[gadget]]
+name = "MSKg16mul_hpc3"
+operation = 'G16_mul'
+[[gadget.port]]
+name = 'ina0'
+latency = 1
+has_prev = true
+[[gadget.port]]
+name = 'ina1'
+latency = 1
+has_prev = true
+[[gadget.port]]
+name = 'ina2'
+latency = 1
+has_prev = true
+[[gadget.port]]
+name = 'ina3'
+latency = 1
+has_prev = true
+[[gadget.port]]
+name = 'inb0'
+latency = 1
+[[gadget.port]]
+name = 'inb1'
+latency = 1
+[[gadget.port]]
+name = 'inb2'
+latency = 1
+[[gadget.port]]
+name = 'inb3'
+latency = 1
+[[gadget.output]]
+name = 'out0'
+[[gadget.output]]
+name = 'out1'
+[[gadget.output]]
+name = 'out2'
+[[gadget.output]]
+name = 'out3'
+[[gadget.random_port]]
+name = 'rnd'
+latency = 1
+n_bits = '4*HPC3'
