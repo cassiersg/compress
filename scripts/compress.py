@@ -328,11 +328,23 @@ class Circuit:
 
 
 def randomness_req(rnd_gtype) -> tuple[str, Any]:
+    rnd_gtype = rnd_gtype.split('*')
+    if len(rnd_gtype) == 1:
+        rnd_gtype, factor = rnd_gtype[0].strip(), 1
+    else:
+        factor, rnd_gtype = rnd_gtype
+        rnd_gtype = rnd_gtype.strip()
+        factor = int(factor.strip())
     match rnd_gtype:
         case "HPC2":
-            return ("d*(d-1)/2", lambda d: d * (d - 1) // 2)
+            return (f"{factor}*d*(d-1)/2", lambda d: factor * d * (d - 1) // 2)
         case "HPC3":
-            return ("d*(d-1)", lambda d: d * (d - 1))
+            return (f"{factor}*d*(d-1)", lambda d: factor * d * (d - 1))
+        case "HPC1":
+            def hpc1rnd(d):
+                ref_rnd = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5 }[d]
+                return d * (d-1)//2 + ref_rnd
+            return (f"{factor}*hpc1rnd", lambda d: factor * hpc1rnd(d))
         case _:
             assert False
 
@@ -881,6 +893,7 @@ class VerilogGenerator:
         lines += [f"    {x}," for x in self.ports()]
         # I/Os
         lines.append(");")
+        lines.append('`include "MSKand_hpc1.vh"')
         lines.append('`include "MSKand_hpc2.vh"')
         lines.append('`include "MSKand_hpc3.vh"')
         # I/Os wire declaration (old-style).
