@@ -15,7 +15,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKg4mul_hpc3 #(parameter d=`DEFAULTSHARES) (
+module MSKg16mul_hpc3 #(parameter d=`DEFAULTSHARES) (
     ina0, 
     ina1, 
     ina2, 
@@ -109,7 +109,7 @@ for(i=0; i<d; i=i+1) begin: ParProdI
             G16_mul g16mul_inst2(
                 .x({ina3_prev[i], ina2_prev[i], ina1_prev[i], ina0_prev[i]}),
                 .y(v_j2),
-                .out({v3[j2],v2[j2],v1[j2],v0[j2]})
+                .z({v3[j2],v2[j2],v1[j2],v0[j2]})
             );
         end
     end

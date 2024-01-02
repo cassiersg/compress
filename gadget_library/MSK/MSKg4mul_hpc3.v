@@ -88,7 +88,7 @@ for(i=0; i<d; i=i+1) begin: ParProdI
             G4_mul g4mul_inst2(
                 .x({ina1_prev[i], ina0_prev[i]}),
                 .y(v_j2),
-                .out({v1[j2],v0[j2]})
+                .z({v1[j2],v0[j2]})
             );
         end
     end
