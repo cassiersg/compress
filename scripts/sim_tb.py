@@ -1,6 +1,5 @@
 import itertools as it
 import json
-import operator
 import os
 import random
 
@@ -11,15 +10,17 @@ from cocotb.types import LogicArray
 
 from scripts import compress
 
+
 def g4_mul_int(x, y):
     a = (x & 0x2) >> 1
-    b = (x & 0x1)
+    b = x & 0x1
     c = (y & 0x2) >> 1
-    d = (y & 0x1)
+    d = y & 0x1
     e = (a ^ b) & (c ^ d)
     p = (a & c) ^ e
     q = (b & d) ^ e
-    return ( (p<<1) | q )
+    return (p << 1) | q
+
 
 def g4_mul_bit(x0, x1, y0, y1):
     a = x1
@@ -31,43 +32,46 @@ def g4_mul_bit(x0, x1, y0, y1):
     q = (b & d) ^ e
     return q, p
 
-def G4_scl_N_int(x):
-    a = (x & 0x2) >> 1 
-    b = (x & 0x1)
+
+def g4_scl_N_int(x):
+    a = (x & 0x2) >> 1
+    b = x & 0x1
     p = b
     q = a ^ b
-    return ( (p<<1) | q )
+    return (p << 1) | q
+
 
 def g16_mul_int(x, y):
-    a = (x & 0xC) >> 2 
-    b = (x & 0x3)
-    c = (y & 0xC) >> 2 
-    d = (y & 0x3)
-    e = G4_mul_int( a ^ b, c ^ d )
-    e = G4_scl_N_int(e)
-    p = G4_mul( a, c ) ^ e
-    q = G4_mul( b, d ) ^ e
-    return ( (p<<2) | q )
+    a = (x & 0xC) >> 2
+    b = x & 0x3
+    c = (y & 0xC) >> 2
+    d = y & 0x3
+    e = g4_mul_int(a ^ b, c ^ d)
+    e = g4_scl_N_int(e)
+    p = g4_mul_int(a, c) ^ e
+    q = g4_mul_int(b, d) ^ e
+    return (p << 2) | q
+
 
 def g16_mul_bit(x0, x1, x2, x3, y0, y1, y2, y3):
     g16 = g16_mul_int(
-            x0 | (x1 << 1) | (x2 << 2) | (x3 << 3),
-            y0 | (y1 << 1) | (y2 << 2) | (y3 << 3)
-            )
+        x0 | (x1 << 1) | (x2 << 2) | (x3 << 3), y0 | (y1 << 1) | (y2 << 2) | (y3 << 3)
+    )
     z0 = g16 & 0x1
     z1 = (g16 >> 1) & 0x1
     z2 = (g16 >> 2) & 0x1
     z3 = (g16 >> 3) & 0x1
-    return [z0,z1,z2,z3]
+    return [z0, z1, z2, z3]
+
 
 class NewCircuit:
     OP_MAP = {
-            compress.OP_XOR: lambda x, y: [x ^ y],
+        compress.OP_XOR: lambda x, y: [x ^ y],
         compress.OP_XNOR: lambda x, y: [not (x ^ y)],
         compress.OP_AND: lambda x, y: [x & y],
         compress.OP_NOT: lambda x: [not x],
         compress.Operation.from_symbol("G4_mul"): g4_mul_bit,
-        compress.Operation.from_symbol("G16_mul"): g16_mul_bit
+        compress.Operation.from_symbol("G16_mul"): g16_mul_bit,
     }
 
     def __init__(self, fname: str):
@@ -81,7 +85,9 @@ class NewCircuit:
         res = {var: inputs[var] for var in self.circuit.inputs}
         for computations in self.circuit.computations:
             computation = next(iter(computations))
-            x = self.OP_MAP[computation.operation](*(res[op] for op in computation.operands))
+            x = self.OP_MAP[computation.operation](
+                *(res[op] for op in computation.operands)
+            )
             for var, output in zip(computation.outputs, x):
                 res[var] = output
         return res
@@ -160,19 +166,61 @@ class DutWrapper:
         return {name: self.unmask(x) for name, x in pattern.items()}
 
     @staticmethod
-    def unmask(x):
-        return bin(x).count("1") % 2
+    def unmask(x) -> bool:
+        return bool(bin(x).count("1") % 2)
 
-    def outputs_unmasked(self):
+    def outputs_unmasked(self) -> dict[compress.Variable, bool]:
         return {
-            name: self.unmask(hnd.value) for name, hnd in self.output_handles.items()
+            compress.Variable(name): self.unmask(hnd.value)
+            for name, hnd in self.output_handles.items()
         }
+
+
+# fmt: off
+AES_SBOX = [
+    0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
+    0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
+    0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC, 0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
+    0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A, 0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75,
+    0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0, 0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84,
+    0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B, 0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF,
+    0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85, 0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8,
+    0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5, 0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2,
+    0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17, 0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73,
+    0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88, 0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB,
+    0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C, 0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79,
+    0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9, 0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08,
+    0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6, 0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A,
+    0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E, 0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
+    0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
+    0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
+]
+# fmt: on
+
+
+def aes_sbox_ref(i_umsk):
+    x = sum(int(i_umsk[f"i{i}"]) << i for i in range(8))
+    x = AES_SBOX[x]
+    return {f"o{i}": (x >> i) & 0x1 for i in range(8)}
+
+
+REF_CIRCUITS = {
+    "aes_sbox": aes_sbox_ref,
+}
 
 
 @cocotb.test()
 async def test_dut(dut):
     # precompute all possible input/output states
     stats_file = os.environ["STATS"]
+    check_eval = os.environ.get("TB_CHECK_EVAL", "1") != "0"
+    check_ref = os.environ.get("TB_CHECK_REF")
+    if check_eval:
+        print("Checking output against the .txt COMPRESS circuit.")
+    if check_ref is not None:
+        print("Checking output to be the {check_ref} function.")
+    if not check_eval and check_ref is None:
+        print("WARNING: Circuit output not verified.")
     with open(stats_file) as f:
         stats = json.load(f)
     latency = stats["Latency"]
@@ -200,9 +248,14 @@ async def test_dut(dut):
 
         i_umsk = dut_wrapper.pattern_input_unmasked(in_pattern)
         o_umsk = dut_wrapper.outputs_unmasked()
-        eval_circuit = circuit.evaluate(i_umsk)
-        for name, val in o_umsk.items():
-            assert val == eval_circuit[name]
+        if check_eval:
+            eval_circuit = circuit.evaluate(i_umsk)
+            for name, val in o_umsk.items():
+                assert val == eval_circuit[name]
+        if check_ref is not None:
+            ref_circuit = REF_CIRCUITS[check_ref](i_umsk)
+            for name, val in o_umsk.items():
+                assert val == ref_circuit[name]
 
         dut_wrapper.reset()
 
