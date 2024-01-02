@@ -328,7 +328,7 @@ class Circuit:
 
 
 def randomness_req(rnd_gtype) -> tuple[str, Any]:
-    rnd_gtype = rnd_gtype.split('*')
+    rnd_gtype = rnd_gtype.split("*")
     if len(rnd_gtype) == 1:
         rnd_gtype, factor = rnd_gtype[0].strip(), 1
     else:
@@ -341,9 +341,11 @@ def randomness_req(rnd_gtype) -> tuple[str, Any]:
         case "HPC3":
             return (f"{factor}*d*(d-1)", lambda d: factor * d * (d - 1))
         case "HPC1":
+
             def hpc1rnd(d):
-                ref_rnd = { 1: 0, 2: 1, 3: 2, 4: 4, 5: 5 }[d]
-                return d * (d-1)//2 + ref_rnd
+                ref_rnd = {1: 0, 2: 1, 3: 2, 4: 4, 5: 5}[d]
+                return d * (d - 1) // 2 + ref_rnd
+
             return (f"{factor}*hpc1rnd", lambda d: factor * hpc1rnd(d))
         case _:
             assert False
@@ -499,7 +501,10 @@ class Model:
                                 )
                                 for op_l in latencies
                             )
-                            possible_computations[(l, v)].append(inst & operands_valid)
+                            for output in computation.outputs:
+                                possible_computations[(l, output)].append(
+                                    inst & operands_valid
+                                )
                     if computation.operation == OP_TOFFOLI:
                         # Toffoli-capable gates
                         toffoli_gadgets = set(
@@ -639,9 +644,10 @@ class Model:
                                         poss_cmp=poss_cmp,
                                         all_pc=possible_computations,
                                     )
-                self.m += self.var_compute[v][l] == cp.any(
-                    possible_computations[(l, v)]
-                )
+                for output in next(iter(computations)).outputs:
+                    self.m += self.var_compute[output][l] == cp.any(
+                        possible_computations[(l, output)]
+                    )
 
         ## Top-level counts
         self.gadget_count = {
@@ -849,7 +855,7 @@ class VerilogGenerator:
     def sharings(self):
         res = [
             *[(v, 0) for v in self.circuit.inputs],
-            *[(v, i) for _, v, i, _, _ in self.gadgets],
+            *[(o, i) for _, _, i, c, _ in self.gadgets for o in c.outputs],
             *[(v, i + 1) for v, i in self.reg_pipeline],
         ]
         res.sort()
