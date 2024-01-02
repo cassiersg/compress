@@ -210,7 +210,7 @@ class Circuit:
 
                 c._add_computation(
                     Computation(
-                        Operation(re_match.group("fn")),
+                        Operation.from_symbol(re_match.group("fn")),
                         split_vars(re_match.group("ops")),
                         split_vars(re_match.group("results")),
                     )
