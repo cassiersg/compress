@@ -31,6 +31,7 @@ wire [d-1:0] inb_ref;
 wire [ref_n_rnd-1:0] rnd_ref;
 assign rnd_ref = rnd[ref_n_rnd-1:0];
 
+wire [dom_rnd-1:0] rnd_mul;
 assign rnd_mul = rnd[hpc1rnd-1:ref_n_rnd];
 
 MSKref_sni #(.d(d)) rfrsh (.in(inb), .clk(clk), .out(inb_ref), .rnd(rnd_ref));
