@@ -85,7 +85,7 @@ $(addsuffix /beh_simu/simu.log,$(CIRCUIT_DIRS)) : %/beh_simu/simu.log : %/design
 					  TOPLEVEL=$(CIRCUIT_NAME) \
 					  CIRCUIT_FILE_PATH=$(CIRCUIT) \
 					  WORKDIR=$(dir $@) \
-					  $(MAKE) -f simu.mk > $@ || exit 0
+					  $(MAKE) -f simu.mk sim_nonrecursive > $@ || exit 0
 
 # structural simu
 $(addsuffix /struct_simu/simu.log,$(CIRCUIT_DIRS)): %/struct_simu/simu.log: %/synth/design.v
@@ -95,7 +95,7 @@ $(addsuffix /struct_simu/simu.log,$(CIRCUIT_DIRS)): %/struct_simu/simu.log: %/sy
 					  TOPLEVEL=$(CIRCUIT_NAME) \
 					  CIRCUIT_FILE_PATH=$(CIRCUIT) \
 					  WORKDIR=$(dir $@) \
-					  $(MAKE) -f simu.mk > $@ || exit 0
+					  $(MAKE) -f simu.mk sim_nonrecursive > $@ || exit 0
 
 
 # Mark simulation success (simulation always return a zero exit code).
