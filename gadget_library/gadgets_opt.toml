@@ -67,7 +67,7 @@ latency = 1
 [[gadget.port]]
 name = 'inb'
 latency = 2
-has_prev=true
+has_prev = true
 [[gadget.random_port]]
 name = 'rnd'
 latency = 2
@@ -80,7 +80,7 @@ operation = 'AND'
 [[gadget.port]]
 name = 'ina'
 latency = 2
-has_prev=true
+has_prev = true
 [[gadget.port]]
 name = 'inb'
 latency = 1
@@ -225,7 +225,7 @@ operation = 'CROSS'
 [[gadget.port]]
 name = 'ina'
 latency = 1
-has_prev=true
+has_prev = true
 [[gadget.port]]
 name = 'inb'
 latency = 1
@@ -245,7 +245,7 @@ latency = 1
 [[gadget.port]]
 name = 'inb'
 latency = 1
-has_prev=true
+has_prev = true
 [[gadget.random_port]]
 name = 'rnd'
 latency = 1
@@ -285,9 +285,13 @@ name = 'out0'
 [[gadget.output]]
 name = 'out1'
 [[gadget.random_port]]
-name = 'rnd'
-latency = 2
-n_bits = '2*HPC1'
+name = 'rnd_mul'
+latency = 1
+n_bits = '2*HPC2'
+[[gadget.random_port]]
+name = 'rnd_ref'
+latency = '1+SNIREF'
+n_bits = '2*SNIREF'
 
 [[gadget]]
 name = "MSKg16mul_hpc1"
@@ -325,9 +329,13 @@ name = 'out2'
 [[gadget.output]]
 name = 'out3'
 [[gadget.random_port]]
-name = 'rnd'
-latency = 2
-n_bits = '4*HPC1'
+name = 'rnd_mul'
+latency = 1
+n_bits = '4*HPC2'
+[[gadget.random_port]]
+name = 'rnd_ref'
+latency = '1+SNIREF'
+n_bits = '4*SNIREF'
 
 ### MUL G4-16 HPC3 ###
 

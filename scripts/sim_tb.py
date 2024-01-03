@@ -99,7 +99,7 @@ class DutWrapper:
     def __init__(self, circuit, dut):
         self.dut = dut
         self.rnd_handles = {
-            int(name[3:]): getattr(dut, name)
+            int(name[4:].replace("m", "-")): getattr(dut, name)
             for name in sorted(dir(dut))
             if name.startswith("rnd")
         }
@@ -234,11 +234,12 @@ async def test_dut(dut):
     for _ in range(2):
         await RisingEdge(dut.clk)
 
+    start_cycle = min(0, *dut_wrapper.rnd_handles.keys())
     for in_pattern, rnd_pattern in dut_wrapper.test_patterns():
-        dut_wrapper.apply_pattern(in_pattern)
-
-        for clkcnt in range(latency + 1):
-            if clkcnt == 1:
+        for clkcnt in range(start_cycle, latency + 1):
+            if clkcnt == 0:
+                dut_wrapper.apply_pattern(in_pattern)
+            elif clkcnt == 1:
                 dut_wrapper.reset_inputs()
             dut_wrapper.reset_rnd()
             if x := rnd_pattern.get(clkcnt) is not None:

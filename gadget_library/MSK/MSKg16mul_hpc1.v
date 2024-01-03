@@ -15,23 +15,19 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKg16mul_hpc1 #(parameter d=`DEFAULTSHARES) (ina0, ina1, ina2, ina3, inb0, inb1, inb2, inb3, rnd, clk, out0, out1, out2, out3);
+module MSKg16mul_hpc1 #(parameter d=`DEFAULTSHARES) (ina0, ina1, ina2, ina3, inb0, inb1, inb2, inb3, rnd_ref, rnd_mul, clk, out0, out1, out2, out3);
 `include "MSKand_hpc1.vh"
 
 (* fv_type = "sharing", fv_latency = 1+ref_rndlat *) input  [d-1:0] ina0, ina1, ina2, ina3;
 (* fv_type = "sharing", fv_latency = ref_rndlat *) input  [d-1:0] inb0, inb1, inb2, inb3;
 (* fv_type = "clock" *) input clk;
 (* fv_type = "sharing", fv_latency = 2+ref_rndlat *) output [d-1:0] out0, out1, out2, out3;
-(* fv_type = "random", fv_count=2, fv_rnd_lat_0=0, fv_rnd_count_0=4*ref_n_rnd, fv_rnd_lat_1=1+ref_rndlat, fv_rnd_count=4*dom_rnd *)
-input [4*hpc1rnd-1:0] rnd;
+(* fv_type = "random", fv_count=1, fv_rnd_lat_0=0, fv_rnd_count_0=4*ref_n_rnd *)
+input [4*ref_n_rnd-1:0] rnd_ref;
+(* fv_type = "random", fv_count=1, fv_rnd_lat_0=1+ref_rndlat, fv_rnd_count_0=4*dom_rnd *)
+input [4*dom_rnd-1:0] rnd_mul;
 
 wire [d-1:0] inb0_ref, inb1_ref, inb2_ref, inb3_ref;
-
-wire [4*ref_n_rnd-1:0] rnd_ref;
-assign rnd_ref = rnd[4*ref_n_rnd-1:0];
-
-wire [4*dom_rnd-1:0] rnd_mul;
-assign rnd_mul = rnd[4*hpc1rnd-1:4*ref_n_rnd];
 
 MSKref_sni #(.d(d)) rfrsh0 (.in(inb0), .clk(clk), .out(inb0_ref), .rnd(rnd_ref[0 +: ref_n_rnd]));
 MSKref_sni #(.d(d)) rfrsh1 (.in(inb1), .clk(clk), .out(inb1_ref), .rnd(rnd_ref[ref_n_rnd +: ref_n_rnd]));

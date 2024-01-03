@@ -340,15 +340,35 @@ def randomness_req(rnd_gtype) -> tuple[str, Any]:
             return (f"{factor}*d*(d-1)/2", lambda d: factor * d * (d - 1) // 2)
         case "HPC3":
             return (f"{factor}*d*(d-1)", lambda d: factor * d * (d - 1))
-        case "HPC1":
-
-            def hpc1rnd(d):
-                ref_rnd = {1: 0, 2: 1, 3: 2, 4: 4, 5: 5}[d]
-                return d * (d - 1) // 2 + ref_rnd
-
-            return (f"{factor}*hpc1rnd", lambda d: factor * hpc1rnd(d))
+        case "SNIREF":
+            return (
+                f"{factor}*ref_n_rnd",
+                lambda d: factor * {1: 0, 2: 1, 3: 2, 4: 4, 5: 5}[d],
+            )
         case _:
             assert False
+
+
+def randomness_req_latency(rnd_lat, num_shares) -> int:
+    try:
+        return int(rnd_lat)
+    except ValueError:
+        pass
+
+    def sni_ref():
+        if num_shares == 2:
+            return 1
+        elif num_shares <= 5:
+            return 2
+        else:
+            assert False
+
+    replaces = {
+        "SNIREF": lambda: str(sni_ref()),
+    }
+    for rname, rfn in replaces.items():
+        rnd_lat = rnd_lat.replace(rname, rfn())
+    return eval(rnd_lat)
 
 
 @dataclass
@@ -698,7 +718,7 @@ def gen_gate_impls(
         for rngport in gadget.get("random_port", dict()):
             rnd_req_str, rnd_req_fn = randomness_req(rngport["n_bits"])
             randomness_usage[rngport["name"]] = (
-                rngport["latency"],
+                randomness_req_latency(rngport["latency"], num_shares),
                 rnd_req_fn(num_shares),
                 rnd_req_str,
             )
@@ -732,6 +752,13 @@ def list_gadgets(
 ##################################
 
 
+def fmt_rnd(l):
+    if l >= 0:
+        return f"rnd_{l}"
+    else:
+        return f"rnd_m{-l}"
+
+
 # Groups the randomness requirements of the submodules per latency, and
 # generate the fragments of verilog code needed to index them.
 def rnd_reqs(gadgets, gadget_library: dict[str, GateImpl]):
@@ -751,15 +778,15 @@ def rnd_reqs(gadgets, gadget_library: dict[str, GateImpl]):
             lat_rnd_count = randoms.setdefault(global_lat, dict())
             rnds_gadget[
                 lat
-            ] = f".{name}(rnd{global_lat}[{format_rnd_count(lat_rnd_count)} +: {count}])"
+            ] = f".{name}({fmt_rnd(global_lat)}[{format_rnd_count(lat_rnd_count)} +: {count}])"
             lat_rnd_count.setdefault(count, 0)
             lat_rnd_count[count] += 1
         gadget_rnd[(gadget, v, i)] = rnds_gadget
-    random_list = [f"rnd{l}" for l in randoms]
+    random_list = [fmt_rnd(l) for l in randoms]
     randoms = {l: format_rnd_count(rnd_count) for l, rnd_count in randoms.items()}
     random_decls = [
         f'(* fv_type="random", fv_count=1, fv_rnd_count_0={rnd_count}, fv_rnd_lat_0={l}  *)\n'
-        + f"input [{rnd_count}-1:0] rnd{l};"
+        + f"input [{rnd_count}-1:0] {fmt_rnd(l)};"
         for l, rnd_count in randoms.items()
     ]
     return randoms, random_list, random_decls, gadget_rnd
@@ -776,6 +803,11 @@ class VerilogGenerator:
     reg_pipeline: Sequence[tuple[str, int]]
     var_valid: dict[Variable, list[bool]]
     m: Any
+    lat_count: Any = field(init=False)
+    rnd_assign: Any = field(init=False)
+
+    def __post_init__(self):
+        self.lat_count, self.rnd_assign = self.random_lat_count_assign()
 
     def file_header(self):
         return [
@@ -792,29 +824,23 @@ class VerilogGenerator:
         lat_count = defaultdict(lambda: defaultdict(lambda: 0))
         rnd_assign = dict()
         for gadget, v, i, _, _ in self.gadgets:
-            for _, (lat, _, size_expr) in self.gadget_library[
+            for port, (lat, _, size_expr) in self.gadget_library[
                 gadget
             ].randomness_usage.items():
                 global_lat = i - lat
-                rnd_assign[(gadget, v, i)] = lat_count[global_lat].copy()
+                rnd_assign[(gadget, v, i, port)] = lat_count[global_lat].copy()
                 lat_count[global_lat][size_expr] += 1
         return lat_count, rnd_assign
 
-    def random_lat_count(self):
-        return self.random_lat_count_assign()[0]
-
-    def random_assign(self):
-        return self.random_lat_count_assign()[1]
-
     def random_lats(self):
-        return list(self.random_lat_count().keys())
+        return list(self.lat_count.keys())
 
     def ports(self):
         return [
             "clk",
             *self.circuit.inputs,
             *self.circuit.outputs,
-            *(f"rnd{l}" for l in self.random_lats()),
+            *(fmt_rnd(l) for l in self.random_lats()),
         ]
 
     def format_rnd_count(self, rnd_exprs):
@@ -827,7 +853,7 @@ class VerilogGenerator:
     def rnd_count_exprs(self):
         return sorted(
             (lat, self.format_rnd_count(rnd_exprs))
-            for lat, rnd_exprs in self.random_lat_count().items()
+            for lat, rnd_exprs in self.lat_count.items()
         )
 
     def port_decls(self):
@@ -846,7 +872,7 @@ class VerilogGenerator:
         rnd_decls = [
             (
                 f'(* fv_type="random", fv_count=1, fv_rnd_count_0={rnd_count}, fv_rnd_lat_0={lat}  *)',
-                f"input [{rnd_count}-1:0] rnd{lat};",
+                f"input [{rnd_count}-1:0] {fmt_rnd(lat)};",
             )
             for lat, rnd_count in self.rnd_count_exprs()
         ]
@@ -913,7 +939,6 @@ class VerilogGenerator:
         lines.extend(f"assign {v} = {v}_{self.latency};" for v in self.circuit.outputs)
         lines.append("\n")
         # Gadget instantiation
-        rnd_assign = self.random_assign()
         for gadget, v, l, computation, opts in self.gadgets:
             ports = dict()
             if computation.operation == OP_TOFFOLI:
@@ -994,7 +1019,7 @@ class VerilogGenerator:
             ports.update(
                 (
                     name,
-                    f"rnd{l-lat}[{self.format_rnd_count(rnd_assign[(gadget, v, l)])} +: {count}]",
+                    f"{fmt_rnd(l-lat)}[{self.format_rnd_count(self.rnd_assign[(gadget, v, l, name)])} +: {count}]",
                 )
                 for name, (lat, _, count) in self.gadget_library[
                     gadget
