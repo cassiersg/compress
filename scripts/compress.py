@@ -1137,9 +1137,8 @@ def generate_masked_circuit(params: Parameters):
             print(f"{gadget}: {eval_expr(m.gadget_count[gadget])}")
             stats[gadget] = int(eval_expr(m.gadget_count[gadget]))
             ge_sum += eval_expr(m.gadget_count[gadget]) * gadget_library[gadget].cost_ge
-            rng_sum += (
-                eval_expr(m.gadget_count[gadget])
-                * gadget_library[gadget].randomness_usage.get("rnd", [0, 0])[1]
+            rng_sum += eval_expr(m.gadget_count[gadget]) * sum(
+                x[1] for x in gadget_library[gadget].randomness_usage.values()
             )
         print(f"MSKreg: {eval_expr(m.n_regs)}")
         ge_sum += reg_cost * eval_expr(m.n_regs)
