@@ -909,6 +909,9 @@ class VerilogGenerator:
             [
                 "// Randomness bus sizes.",
                 "// This file has been automatically generated.",
+                '`include "MSKand_hpc1.vh"',
+                '`include "MSKand_hpc2.vh"',
+                '`include "MSKand_hpc3.vh"',
                 *(
                     f"localparam rnd_bus{l} = {rnd};"
                     for l, rnd in self.rnd_count_exprs()
