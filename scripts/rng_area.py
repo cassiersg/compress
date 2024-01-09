@@ -2,28 +2,24 @@ import argparse
 import json
 from pathlib import Path
 
-GE = 0.798 # Nangate45
+GE = 0.798  # Nangate45
 
 
 def cli():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out")
-    parser.add_argument("reports", type=Path, metavar='report', nargs=2)
+    parser.add_argument("report", type=Path)
     return parser
 
 
 def main():
     args = cli().parse_args()
-    res = []
-    for report in args.reports:
-        with open(report) as f:
-            l = json.load(f)
-        nbits = int(str(report.parent.name).split('_', 1)[1])
-        areaum2 = float(l["design"].get("area", 0))
-        res.append((nbits, areaum2/GE))
-    (n1, a1), (n2, a2) = res
-    cost = (a2-a1)/(n2-n1)
-    with open(args.out, 'w') as f:
+    with open(args.report) as f:
+        l = json.load(f)
+    nbits = int(str(args.report.parent.name).split("_", 1)[1])
+    areaum2 = float(l["design"].get("area", 0))
+    cost = (areaum2 / GE) / nbits
+    with open(args.out, "w") as f:
         f.write(str(cost))
 
 

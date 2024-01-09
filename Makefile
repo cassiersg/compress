@@ -46,7 +46,7 @@ $(WORK)/rng_area/nbits_%/area.json: gadget_library/RNG/trivium/*.v
 	yosys -qq -c $(SYNTH_SCRIPT) -l  $(dir $@)/synth.log
 
 RNG_AREA = $(WORK)/rng_area/area_ge.txt
-$(RNG_AREA): $(foreach N,32 512,$(WORK)/rng_area/nbits_$N/area.json)
+$(RNG_AREA): $(WORK)/rng_area/nbits_512/area.json
 	$(PYTHON) $(SCRIPT_DIR)/rng_area.py --out=$@ $^
 
 
