@@ -15,7 +15,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_hpc2o2_tof #(parameter d=`DEFAULTSHARES) (ina, inb, inb_prev, inc, rnd, clk, out);
+module MSKand_hpc2o_tof #(parameter d=`DEFAULTSHARES) (ina, inb, inb_prev, inc, rnd, clk, out);
 
 `include "MSKand_hpc2.vh"
 

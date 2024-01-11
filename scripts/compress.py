@@ -34,6 +34,7 @@ import itertools as it
 import json
 from math import ceil
 from pathlib import Path
+import pickle
 import re
 import time
 from typing import Sequence, Mapping, Tuple, Set, NewType, Any
@@ -140,6 +141,19 @@ class Circuit:
                 assert all(op in self.all_vars for op in computation.operands)
         for output in self.outputs:
             assert output in self.all_vars
+
+    def unused_vars(self):
+        used_vars = set(self.outputs)
+        explore_stack = list(self.outputs)
+        while explore_stack:
+            v = explore_stack.pop()
+            if v in self.var_comp:
+                c = next(iter(self.computations[self.var_comp[v]]))
+                explore_stack.extend(op for op in c.operands if op not in used_vars)
+                used_vars.update(c.operands)
+        unused_vars = [v for v in self.var_comp if v not in used_vars]
+        return unused_vars
+
 
     @classmethod
     def from_circuit_str(cls, circuit: str):
@@ -297,10 +311,10 @@ class Circuit:
             ]
             while explore_stack:
                 y = explore_stack.pop()
-                if len(dependents[y]) > 1 or y not in self.computations:
+                if len(dependents[y]) > 1 or y not in self.var_comp:
                     xor_list.append(y)
                 else:
-                    computations = self.computations[y]
+                    computations = self.computations[self.var_comp[y]]
                     computation = next(iter(computations))
                     if len(computations) == 1 and computation.operation == OP_XOR:
                         explore_stack.extend(computation.operands)
@@ -415,6 +429,7 @@ class Parameters:
     gadgets_area_csv: Path
     rng_area_txt: Path
     outstats: Path
+    outdump: Path
     gadgets_config: Path
     time_limit: float  # in seconds
 
@@ -529,8 +544,8 @@ class Model:
                         # Toffoli-capable gates
                         toffoli_gadgets = set(
                             (
-                                "MSKand_hpc2o2",
-                                "MSKand_hpc2o2_swapped",
+                                "MSKand_hpc2o",
+                                "MSKand_hpc2o_swapped",
                                 "MSKand_hpc3o",
                                 "MSKand_hpc3o_swapped",
                             )
@@ -1091,7 +1106,8 @@ def eval_expr(x):
 
 
 def eval_expr_bool(x) -> bool:
-    assert x in (0, 1), x
+    x = eval_expr(x)
+    assert x in {0, 1}, x
     return bool(x)
 
 
@@ -1104,6 +1120,8 @@ def generate_masked_circuit(params: Parameters):
     with open(params.circuit, "r") as f:
         s = f.read()
     c = Circuit.from_circuit_str(s)
+    unused_vars = c.unused_vars()
+    assert len(unused_vars) == 0, f"Variables {unused_vars} are not used."
     if params.toffoli:
         c.make_toffolis()
     c.split_and_inner_cross()
@@ -1131,6 +1149,8 @@ def generate_masked_circuit(params: Parameters):
     hassol = m.m.solve(time_limit=params.time_limit)
     solve_time = time.time() - t0
     print("Status:", m.m.status())  # Status: ExitStatus.OPTIMAL (0.03033301 seconds)
+    with open(params.outdump, "wb") as f:
+        pickle.dump(dict(c=c, m=m), f)
     if hassol:
         print("solution found.")
         ge_sum = 0
@@ -1212,6 +1232,7 @@ def cli():
     parser.add_argument("--gadgets-area-csv", type=Path, required=True)
     parser.add_argument("--rng-area-txt", type=Path, required=True)
     parser.add_argument("--outstats", required=True, type=Path)
+    parser.add_argument("--outdump", required=True, type=Path)
     parser.add_argument("--gadgets-config", required=True)
     parser.add_argument(
         "--time-limit", type=float, default=300.0, help="Solver timeout in second."

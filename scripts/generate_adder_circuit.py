@@ -316,7 +316,8 @@ def print_KSmod(n, f):
     # Initialization - level 0
     for i in range(0, n):
         write_op(f"P0_{i}", f'i{i}', f'i{n+i}', '+')
-        write_op(f"G0_{i}", f'i{i}', f'i{n+i}', '&')
+        if i != n-1:
+            write_op(f"G0_{i}", f'i{i}', f'i{n+i}', '&')
 
     # Further levels
     t_cnt = 0
@@ -329,7 +330,7 @@ def print_KSmod(n, f):
             assign(f"G{level}_{i}", f"G{level-1}_{i}")
 
         # Orange
-        for i in range(distance, n):
+        for i in range(distance, n-1):
             
             if not(0 <= i < distance_next):
                 write_op(f'P{level}_{i}', f'P{level-1}_{i}', f'P{level-1}_{i-distance}', '&')

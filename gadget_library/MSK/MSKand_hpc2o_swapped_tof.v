@@ -15,21 +15,23 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_hpc2o2_swapped #(parameter d=`DEFAULTSHARES) (ina, ina_prev, inb, rnd, clk, out);
+module MSKand_hpc2o_swapped_tof #(parameter d=`DEFAULTSHARES) (ina, ina_prev, inb, inc, rnd, clk, out);
 
 `include "MSKand_hpc2.vh"
 
 (* fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina;
 (* fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] ina_prev;
 (* fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] inb;
+(* fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] inc;
 (* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc2rnd *) input [hpc2rnd-1:0] rnd;
 (* fv_type = "clock" *) input clk;
 (* fv_type = "sharing", fv_latency = 2 *) output [d-1:0] out;
 
-MSKand_hpc2o2 #(.d(d)) inner(
+MSKand_hpc2o_tof #(.d(d)) inner(
     .ina(inb),
     .inb(ina),
     .inb_prev(ina_prev),
+    .inc(inc),
     .rnd(rnd),
     .clk(clk),
     .out(out)

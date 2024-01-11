@@ -59,7 +59,7 @@ n_bits = 'HPC2'
 
 ### HPC2 AND OPT ###
 [[gadget]]
-name = "MSKand_hpc2o2"
+name = "MSKand_hpc2o"
 operation = 'AND'
 [[gadget.port]]
 name = 'ina'
@@ -75,7 +75,7 @@ n_bits = 'HPC2'
 
 ### HPC2 AND OPT SWAPPED###
 [[gadget]]
-name = "MSKand_hpc2o2_swapped"
+name = "MSKand_hpc2o_swapped"
 operation = 'AND'
 [[gadget.port]]
 name = 'ina'

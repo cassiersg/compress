@@ -58,7 +58,7 @@ CIRCUIT_DIRS = $(foreach D,$(DS),$(foreach L,$(LATS),$(call circuit_dir,$D,$L)))
 
 # COMPRESS
 define rule_compress
-$(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(COMPRESS_SCRIPT) $(RNG_AREA) $(call GADGETS_AREA_CSV,$(1))
+$(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(RNG_AREA) $(call GADGETS_AREA_CSV,$(1))
 	@mkdir -p $$(dir $$@)
 	$(PYTHON) $(COMPRESS_SCRIPT) \
 		--num-shares $(1) --latency=$(2) \
@@ -66,6 +66,7 @@ $(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(COMPRESS_SCRIPT) $(RNG_AREA
 		--out=$$@ --outh=$$@h \
 		--gadgets-area-csv=$(WORK)/gadget_area/areas_d$(1).csv --rng-area-txt=$(RNG_AREA) \
 		--outstats=$$(dir $$@)/stats.json \
+		--outdump=$$(dir $$@)/compress_model.pkl \
 		--gadgets-config=$(GADGETS_CONFIG) \
 		--time-limit 3600 \
 		> $$(dir $$@)/compress.log
