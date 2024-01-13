@@ -138,9 +138,9 @@ class Circuit:
     def _check_all_defined(self):
         for computations in self.computations:
             for computation in computations:
-                assert all(op in self.all_vars for op in computation.operands)
+                assert all(op in self.all_vars for op in computation.operands), computation
         for output in self.outputs:
-            assert output in self.all_vars
+            assert output in self.all_vars, output
 
     def unused_vars(self):
         used_vars = set(self.outputs)

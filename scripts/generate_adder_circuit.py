@@ -380,13 +380,14 @@ def print_sklanskymod(n, f):
     # Initialization - level 0
     for i in range(0, n):
         write_op(f'P0_{i}', f'i{i}', f'i{n+i}', '+')
-        write_op(f'G0_{i}', f'i{i}', f'i{n+i}', '&')
+        if i != n-1:
+            write_op(f'G0_{i}', f'i{i}', f'i{n+i}', '&')
 
     # Further levels
     step = 1
     t_cnt = 0
     for level in range(1, levels+1):
-        for i in range(0,n):
+        for i in range(0,n-1):
             skip = ((i // step)) % 2 == 0
             if skip:
                 if i >= (2**level):
@@ -593,6 +594,8 @@ def print_BKmod(n, f):
     f.write("\n")
     f.write("\n")
 
+    n = n-1
+
     var_map = dict()
     def var(x):
         return var_map.setdefault(x, x)
@@ -618,6 +621,8 @@ def print_BKmod(n, f):
         valid[0][i] = True
 
     t_cnt = 0
+
+    assign(f"G{num_levels-1}_{n-1}", f"o{n}")
 
     # Binary tree - merge 2 elements
     depth_binary_tree = num_levels//2 + 1
@@ -670,8 +675,6 @@ def print_BKmod(n, f):
     for i in range(1, n):
         last_valid_level = find_valid_level(valid, i-1)
         write_op(f'o{i}', f'P0_{i}', f'G{last_valid_level}_{i-1}', '+')
-    #last_valid_level = find_valid_level(valid, n-1)
-    #f.write(f"o{n} = G{last_valid_level}_{n-1}\n")
 
 
 def cli():
