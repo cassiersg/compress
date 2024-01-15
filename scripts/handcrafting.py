@@ -76,6 +76,15 @@ class Nodeop:
         self.node_index = Nodeop.global_node_idx
         Nodeop.global_node_idx += 1
 
+    def __str__(self):
+        ostr = "{} {} {} {}".format(
+                self.src0,
+                self.src1,
+                self.op,
+                self.lat
+                )
+        return ostr
+
     def update_op(self, op):
         self.op = op
         self.lat = self.exp_lat()
@@ -139,6 +148,15 @@ class NodeVar:
         else:
             self.time = None
 
+    def __str__(self):
+        ostr = "\nid: {}\ndtype: {}\nlenstr: {}\nop: {}".format(
+            self.id,
+            self.dtype,
+            self.lenstr,
+            self.op
+        )
+        return ostr
+
     def rnd_time(self):
         if self.op is None:
             return None
@@ -195,8 +213,14 @@ def parse_cmd(cmd):
         ops.append(opref)
     return [idstrs, ops]
 
+# parse_var_label_with_output
+def parse_vlwo(label, omap):
+    if label in omap.keys():
+        return omap[label]
+    else:
+        return label
 
-def parse_line(line):
+def parse_line(line,out_map):
     # Parse as ID=op
     [idstrs, ops] = parse_cmd(line)
     # Create Node accordingly
@@ -210,7 +234,7 @@ def parse_line(line):
                 [idstr, NodeVar(idstr, None, 0, dtype, size), False, True]
             )
         elif "id(" in op:
-            node = op.split("id(")[1].split(")")[0]
+            node = parse_vlwo(op.split("id(")[1].split(")")[0],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -230,7 +254,7 @@ def parse_line(line):
                 ]
             )
         elif "not(" in op:
-            node = op.split("not(")[1].split(")")[0]
+            node = parse_vlwo(op.split("not(")[1].split(")")[0],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -270,7 +294,7 @@ def parse_line(line):
                 ]
             )
         elif "reg(" in op:
-            node = op.split("reg(")[1].split(")")[0]
+            node = parse_vlwo(op.split("reg(")[1].split(")")[0],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -290,8 +314,8 @@ def parse_line(line):
                 ]
             )
         elif "add(" in op:
-            op0 = op.split("add(")[1].split(")")[0].split(",")[0]
-            op1 = op.split("add(")[1].split(")")[0].split(",")[1]
+            op0 = parse_vlwo(op.split("add(")[1].split(")")[0].split(",")[0],out_map) 
+            op1 = parse_vlwo(op.split("add(")[1].split(")")[0].split(",")[1],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -311,8 +335,8 @@ def parse_line(line):
                 ]
             )
         elif "and(" in op:
-            op0 = op.split("and(")[1].split(")")[0].split(",")[0]
-            op1 = op.split("and(")[1].split(")")[0].split(",")[1]
+            op0 = parse_vlwo(op.split("and(")[1].split(")")[0].split(",")[0],out_map)  
+            op1 = parse_vlwo(op.split("and(")[1].split(")")[0].split(",")[1],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -332,8 +356,8 @@ def parse_line(line):
                 ]
             )
         elif "andp2(" in op:
-            op0 = op.split("andp2(")[1].split(")")[0].split(",")[0]
-            op1 = op.split("andp2(")[1].split(")")[0].split(",")[1]
+            op0 = parse_vlwo(op.split("andp2(")[1].split(")")[0].split(",")[0],out_map)  
+            op1 = parse_vlwo(op.split("andp2(")[1].split(")")[0].split(",")[1],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -353,8 +377,8 @@ def parse_line(line):
                 ]
             )
         elif "addp2(" in op:
-            op0 = op.split("addp2(")[1].split(")")[0].split(",")[0]
-            op1 = op.split("addp2(")[1].split(")")[0].split(",")[1]
+            op0 = parse_vlwo(op.split("addp2(")[1].split(")")[0].split(",")[0],out_map) 
+            op1 = parse_vlwo(op.split("addp2(")[1].split(")")[0].split(",")[1],out_map)
             list_of_node.append(
                 [
                     idstr,
@@ -374,8 +398,8 @@ def parse_line(line):
                 ]
             )
         elif "mux(" in op:
-            op0 = op.split("mux(")[1].split(")")[0].split(",")[0]
-            op1 = op.split("mux(")[1].split(")")[0].split(",")[1]
+            op0 = parse_vlwo(op.split("mux(")[1].split(")")[0].split(",")[0],out_map) 
+            op1 = parse_vlwo(op.split("mux(")[1].split(")")[0].split(",")[1],out_map)
             ctrl0 = op.split("mux(")[1].split(")")[0].split(",")[2]
             nodev = NodeVar(
                 idstr,
@@ -512,7 +536,7 @@ def parse_circuit(filename):
                 new_l = new_l.replace(var_label, o_map[var_label])
             cleaned_lines.append(new_l)
     for l in cleaned_lines:
-        list_of_node = parse_line(l)
+        list_of_node = parse_line(l,o_map)
         for nstr in list_of_node:
             [idstr, node, isout, isin] = nstr
             error_node = add_node_to_circuit(idstr, node, circuits)
