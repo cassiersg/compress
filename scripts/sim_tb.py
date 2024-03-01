@@ -9,6 +9,7 @@ from cocotb.triggers import RisingEdge
 from cocotb.types import LogicArray
 
 from scripts import compress
+from scripts import circuit_eval
 
 
 def g4_mul_int(x, y):
@@ -64,33 +65,12 @@ def g16_mul_bit(x0, x1, x2, x3, y0, y1, y2, y3):
     return [z0, z1, z2, z3]
 
 
-class NewCircuit:
-    OP_MAP = {
-        compress.OP_XOR: lambda x, y: [x ^ y],
-        compress.OP_XNOR: lambda x, y: [not (x ^ y)],
-        compress.OP_AND: lambda x, y: [x & y],
-        compress.OP_NOT: lambda x: [not x],
+circuit_eval.CircuitEval.OP_MAP.update(
+    {
         compress.Operation.from_symbol("G4_mul"): g4_mul_bit,
         compress.Operation.from_symbol("G16_mul"): g16_mul_bit,
     }
-
-    def __init__(self, fname: str):
-        with open(fname, "r") as f:
-            s = f.read()
-        self.circuit = compress.Circuit.from_circuit_str(s)
-
-    def evaluate(
-        self, inputs: dict[compress.Variable, bool]
-    ) -> dict[compress.Variable, bool]:
-        res = {var: inputs[var] for var in self.circuit.inputs}
-        for computations in self.circuit.computations:
-            computation = next(iter(computations))
-            x = self.OP_MAP[computation.operation](
-                *(res[op] for op in computation.operands)
-            )
-            for var, output in zip(computation.outputs, x):
-                res[var] = output
-        return res
+)
 
 
 class DutWrapper:
@@ -224,7 +204,8 @@ async def test_dut(dut):
     with open(stats_file) as f:
         stats = json.load(f)
     latency = stats["Latency"]
-    circuit = NewCircuit(os.environ["CIRCUIT_FILE_PATH"])
+    with open(os.environ["CIRCUIT_FILE_PATH"], "r") as f:
+        circuit = circuit_eval.CircuitEval(f.read())
     dut_wrapper = DutWrapper(circuit, dut)
 
     clock = Clock(dut.clk, 10)  # Create a 10us period clock on port clk
