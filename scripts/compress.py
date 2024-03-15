@@ -40,6 +40,7 @@ import time
 from typing import Sequence, Mapping, Tuple, Set, NewType, Any
 
 import cpmpy as cp
+import networkx as nx
 import tomli
 
 ##################################
@@ -87,6 +88,7 @@ class Computation:
     operation: Operation
     operands: Sequence[Variable]
     outputs: Sequence[Variable]
+    controls: Sequence[Variable]
 
 
 @dataclass
@@ -111,6 +113,7 @@ class Circuit:
 
     inputs: list[Variable] = field(default_factory=list)
     outputs: list[Variable] = field(default_factory=list)
+    controls: list[Variable] = field(default_factory=list)
     # Ways of computating intermediate variables.
     computations: list[Set[Computation]] = field(default_factory=list)
     # Maps the variables to indices in the computation list.
@@ -121,13 +124,16 @@ class Circuit:
         return set(self.var_comp.keys()) | set(self.inputs)
 
     def _add_input(self, input_):
-        "Private builder method."
         assert input_ not in self.all_vars
         self.inputs.append(input_)
 
     def _add_output(self, output):
         assert output not in self.outputs
         self.outputs.append(output)
+
+    def _add_control(self, control):
+        assert control not in self.controls
+        self.controls.append(control)
 
     def _add_computation(self, computation: Computation):
         for res in computation.outputs:
@@ -138,7 +144,12 @@ class Circuit:
     def _check_all_defined(self):
         for computations in self.computations:
             for computation in computations:
-                assert all(op in self.all_vars for op in computation.operands), computation
+                assert all(
+                    op in self.all_vars for op in computation.operands
+                ), computation
+                assert all(
+                    control in self.controls for control in computation.controls
+                ), computation
         for output in self.outputs:
             assert output in self.all_vars, output
 
@@ -154,7 +165,6 @@ class Circuit:
         unused_vars = [v for v in self.var_comp if v not in used_vars]
         return unused_vars
 
-
     @classmethod
     def from_circuit_str(cls, circuit: str):
         """Convert the file representation of Boolean circuits to a Circuit."""
@@ -166,6 +176,7 @@ class Circuit:
         #     t = i0 # i1 // a XNOR gate
         #     o1 = i0 & t // an AND gate
         #     (a, b) = f(x, y, w) // a f gate with 2 outputs
+        #     c = g[s](x, y) // a g gate with 1 control value
         c = Circuit()
         # Split into lines, remove comments and extraneous whitespace
         lines = [line.split("//")[0].strip() for line in circuit.splitlines()]
@@ -174,24 +185,34 @@ class Circuit:
         # There can be only one input and one output line.
         inputs_line = next(line for line in lines if line.startswith("INPUTS"))
         outputs_line = next(line for line in lines if line.startswith("OUTPUTS"))
-        # Convert inputs and outputs to Variable type.
-        inputs = [Variable(x) for x in inputs_line.strip().split()[1:] if x]
-        outputs = [Variable(x) for x in outputs_line.strip().split()[1:] if x]
-        # Add inputs to the circuit
-        for input_ in inputs:
+        controls_line = next(
+            (line for line in lines if line.startswith("CONTROLS")), "CONTROLS"
+        )
+
+        # Convert inputs, outputs and controls to Variable type, add them to the circuit.
+        def parse_ioline(line):
+            return [Variable(x) for x in line.strip().split()[1:] if x]
+
+        for input_ in parse_ioline(inputs_line):
             c._add_input(input_)
-        # Add outputs to the circuit
-        for output in outputs:
+        for output in parse_ioline(outputs_line):
             c._add_output(output)
+        for control in parse_ioline(controls_line):
+            c._add_control(control)
         # Process computations
         computation_lines = [
-            line for line in lines if line != inputs_line and line != outputs_line
+            line
+            for line in lines
+            if line not in (inputs_line, outputs_line, controls_line)
         ]
         RE_RES = r"[(]?\s*(?P<res>\w+)\s*,?\s*[)]?\s*"
         RE_RESULTS = r"[(]?\s*(?P<results>(?:\w+\s*,\s*)*\w+)\s*[)]?\s*"
         RE_OP_BIN = r"=\s*(?P<op1>\w+)\s*(?P<op>[+#&])\s*(?P<op2>\w+)"
         RE_OP_UN = r"=\s*(?P<op>[!])\s*(?P<op1>\w+)"
-        RE_FN = r"=\s*(?P<fn>\w+)\s*[(]\s*(?P<ops>(?:\w+\s*,\s*)*\w+)\s*[)]"
+        RE_FN_NAME = r"=\s*(?P<fn>\w+)\s*"
+        RE_FN_CONTROLS = r"(\[\s*(?P<ctrls>(?:\w+\s*,\s*)*\w+)\s*\]\s*)?"
+        RE_FN_OPS = r"[(]\s*(?P<ops>(?:\w+\s*,\s*)*\w+)\s*[)]"
+        RE_FN = RE_FN_NAME + RE_FN_CONTROLS + RE_FN_OPS
         re_op_bin = re.compile(RE_RES + RE_OP_BIN)
         re_op_un = re.compile(RE_RES + RE_OP_UN)
         re_fn = re.compile(RE_RESULTS + RE_FN)
@@ -205,6 +226,7 @@ class Circuit:
                             Variable(re_match.group("op2")),
                         ),
                         (Variable(re_match.group("res")),),
+                        tuple(),
                     )
                 )
             elif re_match := re_op_un.match(computation):
@@ -213,6 +235,7 @@ class Circuit:
                         Operation.from_symbol(re_match.group("op")),
                         (Variable(re_match.group("op1")),),
                         (Variable(re_match.group("res")),),
+                        tuple(),
                     )
                 )
             elif re_match := re_fn.match(computation):
@@ -222,17 +245,37 @@ class Circuit:
                         [Variable(x.strip()) for x in s.split(",") if x.strip()]
                     )
 
+                ctrls = re_match.group("ctrls")
+                if ctrls is None:
+                    ctrls = ""
                 c._add_computation(
                     Computation(
                         Operation.from_symbol(re_match.group("fn")),
                         split_vars(re_match.group("ops")),
                         split_vars(re_match.group("results")),
+                        split_vars(ctrls),
                     )
                 )
             else:
                 raise ValueError(f'Invalid operation: "{computation}"')
         c._check_all_defined()
         return c
+
+    def sort_computations(self):
+        graph = nx.DiGraph()
+        graph.add_nodes_from((False, v) for v in self.all_vars)
+        for i, computations in enumerate(self.computations):
+            graph.add_node((True, i))
+            for computation in computations:
+                for op in computation.operands:
+                    graph.add_edge((False, op), (True, i))
+                for out in computation.outputs:
+                    graph.add_edge((True, i), (False, out))
+        self.computations = [
+            self.computations[idx]
+            for is_computation, idx in nx.topological_sort(graph)
+            if is_computation
+        ]
 
     def split_and_inner_cross(self):
         """Add a new way to compute AND gates.
@@ -253,13 +296,13 @@ class Circuit:
             assert inner not in self.computations
             self.var_comp[cross] = len(self.computations)
             self.computations.append(
-                {Computation(OP_CROSS, computation.operands, (cross,))}
+                {Computation(OP_CROSS, computation.operands, (cross,), tuple())}
             )
             self.var_comp[inner] = len(self.computations)
             self.computations.append(
-                {Computation(OP_INNER, computation.operands, (inner,))}
+                {Computation(OP_INNER, computation.operands, (inner,), tuple())}
             )
-            computations.add(Computation(OP_XOR, (cross, inner), (res,)))
+            computations.add(Computation(OP_XOR, (cross, inner), (res,), tuple()))
 
     def make_toffolis(self):
         """Add a new way to compute a & b ^ c ^ d..."""
@@ -326,6 +369,7 @@ class Circuit:
                     OP_TOFFOLI,
                     tuple([*and_res_computation.operands, *xor_list]),
                     (res,),
+                    tuple(),
                 )
             )
         print(
@@ -389,16 +433,51 @@ def randomness_req_latency(rnd_lat, num_shares) -> int:
 class GateImpl:
     "A masked gadget."
     name: str
+    # For each input port, a map from latency to input wire name.
     latencies: Sequence[Mapping[int, str]]
     # Maps port name to (latency, rng cost in bits for selected nshares, rng cost as verilog expression)
     randomness_usage: Mapping[str, Tuple[int, int, str]]
     area_ge: float
     rng_area_ge: float
     outputs: list[str]
+    controls: list[tuple[str, int]]
+
+    @classmethod
+    def parse(
+        cls,
+        toml_gadget,
+        num_shares: int,
+        rng_area_ge: float,
+        gadget_areas: dict[str, float],
+    ):
+        latencies = []
+        for port in toml_gadget["port"]:
+            latencies.append({port["latency"]: port["name"]})
+            if port.get("has_prev"):
+                latencies[-1][port["latency"] - 1] = port["name"] + "_prev"
+        randomness_usage = dict()
+        for rngport in toml_gadget.get("random_port", dict()):
+            rnd_req_str, rnd_req_fn = randomness_req(rngport["n_bits"])
+            randomness_usage[rngport["name"]] = (
+                randomness_req_latency(rngport["latency"], num_shares),
+                rnd_req_fn(num_shares),
+                rnd_req_str,
+            )
+        controls = [(c["name"], c["latency"]) for c in toml_gadget.get("control", [])]
+        outputs = [o["name"] for o in toml_gadget.get("output", [{"name": "out"}])]
+        return cls(
+            name=toml_gadget["name"],
+            latencies=latencies,
+            randomness_usage=randomness_usage,
+            area_ge=gadget_areas[toml_gadget["name"]],
+            rng_area_ge=rng_area_ge,
+            outputs=outputs,
+            controls=controls,
+        )
 
     @property
     def has_clk(self) -> bool:
-        return any(x != 0 for x in [l for d in self.latencies for l in d]) or any(
+        return any(x != 0 for x in [lat for d in self.latencies for lat in d]) or any(
             lat != 0 for lat, _, _ in self.randomness_usage.values()
         )
 
@@ -721,34 +800,13 @@ def gen_gate_impls(
     with open(gadgets_config, "rb") as f:
         gadgets = tomli.load(f)["gadget"]
     with open(rngtxt, "r") as f:
-        m = float(f.read())
+        rng_area_ge = float(f.read())
     gate_impls = defaultdict(list)
     for gadget in gadgets:
-        latencies = []
-        for port in gadget["port"]:
-            latencies.append({port["latency"]: port["name"]})
-            if port.get("has_prev"):
-                latencies[-1][port["latency"] - 1] = port["name"] + "_prev"
-        randomness_usage = dict()
-        for rngport in gadget.get("random_port", dict()):
-            rnd_req_str, rnd_req_fn = randomness_req(rngport["n_bits"])
-            randomness_usage[rngport["name"]] = (
-                randomness_req_latency(rngport["latency"], num_shares),
-                rnd_req_fn(num_shares),
-                rnd_req_str,
-            )
-        outputs = [o["name"] for o in gadget.get("output", [{"name": "out"}])]
-        gate = GateImpl(
-            name=gadget["name"],
-            latencies=latencies,
-            randomness_usage=randomness_usage,
-            area_ge=areas[gadget["name"]],
-            rng_area_ge=m,
-            outputs=outputs,
-        )
+        gate = GateImpl.parse(gadget, num_shares, rng_area_ge, areas)
         gate_impls[Operation.from_symbol(gadget["operation"])].append(gate)
 
-    return gate_impls, areas["MSKreg"], m
+    return gate_impls, areas["MSKreg"], rng_area_ge
 
 
 # List all the gadgets instantiated by the solve model.
@@ -756,9 +814,9 @@ def list_gadgets(
     m: Model,
 ) -> list[Tuple[str, str, int, Computation, dict[str, list[Any]]]]:  # Any is cp.BoolVar
     gadget_list = []
-    for inst, v, computation, l, gadget_name, opts in m.inst_gadgets:
+    for inst, v, computation, lat, gadget_name, opts in m.inst_gadgets:
         if inst.value():
-            gadget_list.append((gadget_name, v, l, computation, opts))
+            gadget_list.append((gadget_name, v, lat, computation, opts))
     return gadget_list
 
 
@@ -767,11 +825,11 @@ def list_gadgets(
 ##################################
 
 
-def fmt_rnd(l):
-    if l >= 0:
-        return f"rnd_{l}"
+def fmt_rnd(lat):
+    if lat >= 0:
+        return f"rnd_{lat}"
     else:
-        return f"rnd_m{-l}"
+        return f"rnd_m{-lat}"
 
 
 # Groups the randomness requirements of the submodules per latency, and
@@ -797,12 +855,12 @@ def rnd_reqs(gadgets, gadget_library: dict[str, GateImpl]):
             lat_rnd_count.setdefault(count, 0)
             lat_rnd_count[count] += 1
         gadget_rnd[(gadget, v, i)] = rnds_gadget
-    random_list = [fmt_rnd(l) for l in randoms]
-    randoms = {l: format_rnd_count(rnd_count) for l, rnd_count in randoms.items()}
+    random_list = [fmt_rnd(lat) for lat in randoms]
+    randoms = {lat: format_rnd_count(rnd_count) for lat, rnd_count in randoms.items()}
     random_decls = [
-        f'(* fv_type="random", fv_count=1, fv_rnd_count_0={rnd_count}, fv_rnd_lat_0={l}  *)\n'
-        + f"input [{rnd_count}-1:0] {fmt_rnd(l)};"
-        for l, rnd_count in randoms.items()
+        f'(* fv_type="random", fv_count=1, fv_rnd_count_0={rnd_count}, fv_rnd_lat_0={lat}  *)\n'
+        + f"input [{rnd_count}-1:0] {fmt_rnd(lat)};"
+        for lat, rnd_count in randoms.items()
     ]
     return randoms, random_list, random_decls, gadget_rnd
 
@@ -855,7 +913,8 @@ class VerilogGenerator:
             "clk",
             *self.circuit.inputs,
             *self.circuit.outputs,
-            *(fmt_rnd(l) for l in self.random_lats()),
+            *self.circuit.controls,
+            *(fmt_rnd(lat) for lat in self.random_lats()),
         ]
 
     def format_rnd_count(self, rnd_exprs):
@@ -891,7 +950,14 @@ class VerilogGenerator:
             )
             for lat, rnd_count in self.rnd_count_exprs()
         ]
-        return [clk_decl] + input_decls + output_decls + rnd_decls
+        control_decls = [
+            (
+                '(* fv_type="control", fv_latency=0, fv_count=1 *)',
+                f"input {x};",
+            )
+            for x in self.circuit.controls
+        ]
+        return [clk_decl] + input_decls + output_decls + rnd_decls + control_decls
 
     def sharings(self):
         res = [
@@ -919,6 +985,29 @@ class VerilogGenerator:
             ");",
         ]
 
+    def control_usage(self) -> Mapping[Variable, set[int]]:
+        """For each control, list of latencies at which it is used."""
+        res = defaultdict(set)
+        for gadget, _, glat, computation, _ in self.gadgets:
+            gcontrols = self.gadget_library[gadget].controls
+            assert len(gcontrols) == len(computation.controls)
+            for (_, lat), ctrl_name in zip(gcontrols, computation.controls):
+                assert glat - lat >= 0
+                res[ctrl_name].add(glat - lat)
+        return res
+
+    def pipeline_controls(self) -> list[str]:
+        lines = []
+        for control, lats in self.control_usage().items():
+            max_lat = max(lats)
+            lines.append(f"wire {control}_0 = {control};")
+            lines.extend(f"wire {control}_{lat};" for lat in range(1, max_lat))
+            lines.extend(
+                f"always @(posedge clk) {control}_{lat} <= {control}_{lat-1};"
+                for lat in range(1, max_lat)
+            )
+        return lines
+
     def generate_random_header(self) -> str:
         return "\n".join(
             [
@@ -928,8 +1017,8 @@ class VerilogGenerator:
                 '`include "MSKand_hpc2.vh"',
                 '`include "MSKand_hpc3.vh"',
                 *(
-                    f"localparam rnd_bus{l} = {rnd};"
-                    for l, rnd in self.rnd_count_exprs()
+                    f"localparam rnd_bus{lat} = {rnd};"
+                    for lat, rnd in self.rnd_count_exprs()
                 ),
                 "",
             ]
@@ -955,6 +1044,8 @@ class VerilogGenerator:
         # Assign I/Os
         lines.extend(f"assign {v}_0 = {v};" for v in self.circuit.inputs)
         lines.extend(f"assign {v} = {v}_{self.latency};" for v in self.circuit.outputs)
+        lines.append("\n")
+        lines.extend(self.pipeline_controls())
         lines.append("\n")
         # Gadget instantiation
         for gadget, v, l, computation, opts in self.gadgets:
@@ -1050,6 +1141,10 @@ class VerilogGenerator:
             )
             for op, lats in zip(operands_ports, self.gadget_library[gadget].latencies):
                 ports.update((n, f"{op}_{l-l_op}") for l_op, n in lats.items())
+            for (control, lat), ctrl_name in zip(
+                self.gadget_library[gadget].controls, computation.controls
+            ):
+                ports[control] = f"{ctrl_name}_{l-lat}"
             lines.extend(self.gadget_instantiation(gadget_name, f"comp_{v}_{l}", ports))
         # MSKreg instances
         for v, i in self.reg_pipeline:

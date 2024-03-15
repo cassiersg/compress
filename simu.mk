@@ -14,6 +14,8 @@ $(WORKDIR)/iverilog_dump.v:
 	echo 'end' >> $@
 	echo 'endmodule' >> $@
 
+COCOTB_REDUCED_LOG_FMT=0
+
 export SYNTH_SRCS
 export VINCLUDE
 export VERILOG_SOURCES

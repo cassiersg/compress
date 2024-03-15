@@ -2,6 +2,9 @@ import itertools as it
 import json
 import os
 import random
+import logging
+
+logging.getLogger().setLevel(logging.INFO)
 
 import cocotb
 from cocotb.clock import Clock
@@ -10,67 +13,6 @@ from cocotb.types import LogicArray
 
 from scripts import compress
 from scripts import circuit_eval
-
-
-def g4_mul_int(x, y):
-    a = (x & 0x2) >> 1
-    b = x & 0x1
-    c = (y & 0x2) >> 1
-    d = y & 0x1
-    e = (a ^ b) & (c ^ d)
-    p = (a & c) ^ e
-    q = (b & d) ^ e
-    return (p << 1) | q
-
-
-def g4_mul_bit(x0, x1, y0, y1):
-    a = x1
-    b = x0
-    c = y1
-    d = y0
-    e = (a ^ b) & (c ^ d)
-    p = (a & c) ^ e
-    q = (b & d) ^ e
-    return q, p
-
-
-def g4_scl_N_int(x):
-    a = (x & 0x2) >> 1
-    b = x & 0x1
-    p = b
-    q = a ^ b
-    return (p << 1) | q
-
-
-def g16_mul_int(x, y):
-    a = (x & 0xC) >> 2
-    b = x & 0x3
-    c = (y & 0xC) >> 2
-    d = y & 0x3
-    e = g4_mul_int(a ^ b, c ^ d)
-    e = g4_scl_N_int(e)
-    p = g4_mul_int(a, c) ^ e
-    q = g4_mul_int(b, d) ^ e
-    return (p << 2) | q
-
-
-def g16_mul_bit(x0, x1, x2, x3, y0, y1, y2, y3):
-    g16 = g16_mul_int(
-        x0 | (x1 << 1) | (x2 << 2) | (x3 << 3), y0 | (y1 << 1) | (y2 << 2) | (y3 << 3)
-    )
-    z0 = g16 & 0x1
-    z1 = (g16 >> 1) & 0x1
-    z2 = (g16 >> 2) & 0x1
-    z3 = (g16 >> 3) & 0x1
-    return [z0, z1, z2, z3]
-
-
-circuit_eval.CircuitEval.OP_MAP.update(
-    {
-        compress.Operation.from_symbol("G4_mul"): g4_mul_bit,
-        compress.Operation.from_symbol("G16_mul"): g16_mul_bit,
-    }
-)
 
 
 class DutWrapper:
@@ -83,29 +25,31 @@ class DutWrapper:
             for name in sorted(dir(dut))
             if name.startswith("rnd")
         }
-        self.input_handles = {
-            name: getattr(dut, name)
-            for name in sorted(circuit.circuit.inputs, key=lambda x: x[1:])
-        }
-        self.output_handles = {
-            name: getattr(dut, name)
-            for name in sorted(circuit.circuit.outputs, key=lambda x: x[1:])
-        }
-        self.set_handles = self.input_handles | self.rnd_handles
+
+        def handles(vars):
+            return {
+                name: getattr(dut, name) for name in sorted(vars, key=lambda x: x[1:])
+            }
+
+        self.input_handles = handles(circuit.circuit.inputs)
+        self.control_handles = handles(circuit.circuit.controls)
+        self.output_handles = handles(circuit.circuit.outputs)
+        self.set_handles = self.input_handles | self.rnd_handles | self.control_handles
 
     def exhaustive_test_niter(self):
         return 2 ** sum(hnd.value.n_bits for hnd in self.set_handles.values())
 
+    @staticmethod
+    def handles_pattern(handles):
+        return {
+            name: random.getrandbits(hnd.value.n_bits) for name, hnd in handles.items()
+        }
+
     def random_pattern(self):
         return (
-            {
-                name: random.getrandbits(hnd.value.n_bits)
-                for name, hnd in self.input_handles.items()
-            },
-            {
-                name: random.getrandbits(hnd.value.n_bits)
-                for name, hnd in self.rnd_handles.items()
-            },
+            self.handles_pattern(self.input_handles),
+            self.handles_pattern(self.rnd_handles),
+            self.handles_pattern(self.control_handles),
         )
 
     def exhaustive_patterns(self):
@@ -116,7 +60,9 @@ class DutWrapper:
                 yield dict(zip(handles.keys(), pattern))
 
         yield from it.product(
-            named_patterns(self.input_handles), named_patterns(self.rnd_handles)
+            named_patterns(self.input_handles),
+            named_patterns(self.rnd_handles),
+            named_patterns(self.control_handles),
         )
 
     def test_patterns(self):
@@ -127,7 +73,7 @@ class DutWrapper:
                 yield self.random_pattern()
 
     def reset_inputs(self):
-        for hnd in self.input_handles.values():
+        for hnd in (self.input_handles | self.control_handles).values():
             hnd.value = LogicArray("X" * hnd.value.n_bits)
 
     def reset_rnd(self):
@@ -196,11 +142,11 @@ async def test_dut(dut):
     check_eval = os.environ.get("TB_CHECK_EVAL", "1") != "0"
     check_ref = os.environ.get("TB_CHECK_REF")
     if check_eval:
-        print("Checking output against the .txt COMPRESS circuit.")
+        logging.info("Checking output against the .txt COMPRESS circuit.")
     if check_ref is not None:
-        print("Checking output to be the {check_ref} function.")
+        logging.info(f"Checking output to be the {check_ref} function.")
     if not check_eval and check_ref is None:
-        print("WARNING: Circuit output not verified.")
+        logging.warning("Circuit output not verified.")
     with open(stats_file) as f:
         stats = json.load(f)
     latency = stats["Latency"]
@@ -215,11 +161,11 @@ async def test_dut(dut):
     for _ in range(2):
         await RisingEdge(dut.clk)
 
-    start_cycle = min(0, *dut_wrapper.rnd_handles.keys())
-    for in_pattern, rnd_pattern in dut_wrapper.test_patterns():
+    start_cycle = min([0, *dut_wrapper.rnd_handles.keys()])
+    for in_pattern, rnd_pattern, ctrl_pattern in dut_wrapper.test_patterns():
         for clkcnt in range(start_cycle, latency + 1):
             if clkcnt == 0:
-                dut_wrapper.apply_pattern(in_pattern)
+                dut_wrapper.apply_pattern(in_pattern | ctrl_pattern)
             elif clkcnt == 1:
                 dut_wrapper.reset_inputs()
             dut_wrapper.reset_rnd()
@@ -231,7 +177,8 @@ async def test_dut(dut):
         i_umsk = dut_wrapper.pattern_input_unmasked(in_pattern)
         o_umsk = dut_wrapper.outputs_unmasked()
         if check_eval:
-            eval_circuit = circuit.evaluate(i_umsk)
+            ctrl_pattern_bool = {k: [False, True][v] for k, v in ctrl_pattern.items()}
+            eval_circuit = circuit.evaluate(i_umsk, ctrl_pattern_bool)
             for name, val in o_umsk.items():
                 assert val == eval_circuit[name]
         if check_ref is not None:

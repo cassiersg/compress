@@ -408,3 +408,18 @@ name = 'out3'
 name = 'rnd'
 latency = 1
 n_bits = '4*HPC3'
+
+[[gadget]]
+name = 'MSKmux'
+operation = 'MUX2'
+[[gadget.control]]
+name = 'sel'
+latency = 0
+[[gadget.port]]
+name = 'in_false'
+latency = 0
+[[gadget.port]]
+name = 'in_true'
+latency = 0
+[[gadget.output]]
+name = 'out'

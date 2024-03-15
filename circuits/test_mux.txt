@@ -1,0 +1,11 @@
+// + XOR
+// & AND
+// # XNOR
+
+INPUTS i0 i1 i2 i3
+OUTPUTS o0
+CONTROLS s0 s1
+
+t0 = MUX2[s0](i0, i1)
+t1 = MUX2[s0](i2, i3)
+o0 = MUX2[s1](t0, t1)
