@@ -415,6 +415,7 @@ operation = 'MUX2'
 [[gadget.control]]
 name = 'sel'
 latency = 0
+n_bits = 1
 [[gadget.port]]
 name = 'in_false'
 latency = 0

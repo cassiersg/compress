@@ -177,8 +177,7 @@ async def test_dut(dut):
         i_umsk = dut_wrapper.pattern_input_unmasked(in_pattern)
         o_umsk = dut_wrapper.outputs_unmasked()
         if check_eval:
-            ctrl_pattern_bool = {k: [False, True][v] for k, v in ctrl_pattern.items()}
-            eval_circuit = circuit.evaluate(i_umsk, ctrl_pattern_bool)
+            eval_circuit = circuit.evaluate(i_umsk, ctrl_pattern)
             for name, val in o_umsk.items():
                 assert val == eval_circuit[name]
         if check_ref is not None:

@@ -25,7 +25,7 @@ class CircuitEval:
     def evaluate(
         self,
         inputs: dict[compress.Variable, bool],
-        controls: dict[compress.Variable, bool],
+        controls: dict[compress.Variable, int],
     ) -> dict[compress.Variable, bool]:
         res = {var: inputs[var] for var in self.circuit.inputs}
         for computations in self.circuit.computations:

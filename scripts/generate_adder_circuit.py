@@ -25,11 +25,13 @@ import numpy as np
 
 
 class Circuit:
-    def __init__(self, inputs, outputs):
+    def __init__(self, inputs, outputs, flex=False, flex_bits=3):
         self.var_map = dict()
         self.inputs = inputs
         self.outputs = outputs
         self.ios = set(inputs) | set(outputs)
+        self.flex = flex
+        self.flex_bits = flex_bits
         for x in self.ios:
             self.var(x)
         self.ops = []
@@ -57,6 +59,12 @@ class Circuit:
     def write_op(self, dest, op1, op2, op):
         self.ops.append((dest, op1, op2, op))
 
+    def and_op(self, dest, op1, op2):
+        self.write_op(dest, op1, op2, "&")
+
+    def xor_op(self, dest, op1, op2):
+        self.write_op(dest, op1, op2, "+")
+
     def as_string(self):
         self.apply_var_map()
         lines = [
@@ -69,8 +77,13 @@ class Circuit:
             "OUTPUTS {}".format(" ".join(self.outputs)),
             "",
         ]
+        if self.flex:
+            lines.append(f"CONTROLS s[{self.flex_bits}]")
         for dest, op1, op2, op in self.ops:
-            lines.append(f"{dest} = {op1} {op} {op2}")
+            if op == "&" and self.flex:
+                lines.append(f"{dest} = fAND[s]({op1}, {op2})")
+            else:
+                lines.append(f"{dest} = {op1} {op} {op2}")
         lines.append("")
         return "\n".join(lines)
 
@@ -92,20 +105,20 @@ class Circuit:
 # Tested for n = 4 and n = 16
 def print_RC1(c, n, ina, inb, out):
     # Bit 0:
-    c.write_op("o0", ina[0], inb[0], "+")
-    c.write_op("c1", ina[0], inb[0], "&")
+    c.xor_op("o0", ina[0], inb[0])
+    c.and_op("c1", ina[0], inb[0])
     # Other bits
     for i in range(1, n):
-        c.write_op(f"t0_{i}", ina[i], inb[i], "+")
-        c.write_op(out[i], f"t0_{i}", f"c{i}", "+")
-        c.write_op(f"t1_{i}", ina[i], inb[i], "&")
-        c.write_op(f"t2_{i}", inb[i], f"c{i}", "&")
-        c.write_op(f"t3_{i}", ina[i], f"c{i}", "&")
-        c.write_op(f"t4_{i}", f"t1_{i}", f"t2_{i}", "+")
+        c.xor_op(f"t0_{i}", ina[i], inb[i])
+        c.xor_op(out[i], f"t0_{i}", f"c{i}")
+        c.and_op(f"t1_{i}", ina[i], inb[i])
+        c.and_op(f"t2_{i}", inb[i], f"c{i}")
+        c.and_op(f"t3_{i}", ina[i], f"c{i}")
+        c.xor_op(f"t4_{i}", f"t1_{i}", f"t2_{i}")
         if i == (n - 1):
-            c.write_op(out[i + 1], f"t4_{i}", f"t3_{i}", "+")
+            c.xor_op(out[i + 1], f"t4_{i}", f"t3_{i}")
         else:
-            c.write_op(f"c{i+1}", f"t4_{i}", f"t3_{i}", "+")
+            c.xor_op(f"c{i+1}", f"t4_{i}", f"t3_{i}")
 
 
 # [RC2] Generates binary adder (ripple carry, improved)
@@ -114,18 +127,18 @@ def print_RC1(c, n, ina, inb, out):
 # n = number bits each summand has
 def print_RC2(c, n, ina, inb, out):
     # Bit 0:
-    c.write_op("o0", ina[0], inb[0], "+")
-    c.write_op("c1", ina[0], inb[0], "&")
+    c.xor_op("o0", ina[0], inb[0])
+    c.and_op("c1", ina[0], inb[0])
     # Other bits
     for i in range(1, n):
-        c.write_op(f"t0_{i}", ina[i], inb[i], "+")
-        c.write_op(out[i], f"t0_{i}", f"c{i}", "+")
-        c.write_op(f"t1_{i}", ina[i], inb[i], "&")
-        c.write_op(f"t2_{i}", f"t0_{i}", f"c{i}", "&")
+        c.xor_op(f"t0_{i}", ina[i], inb[i])
+        c.xor_op(out[i], f"t0_{i}", f"c{i}")
+        c.and_op(f"t1_{i}", ina[i], inb[i])
+        c.and_op(f"t2_{i}", f"t0_{i}", f"c{i}")
         if i == (n - 1):
-            c.write_op(out[i + 1], f"t1_{i}", f"t2_{i}", "+")
+            c.xor_op(out[i + 1], f"t1_{i}", f"t2_{i}")
         else:
-            c.write_op(f"c{i+1}", f"t1_{i}", f"t2_{i}", "+")
+            c.xor_op(f"c{i+1}", f"t1_{i}", f"t2_{i}")
 
 
 # [RC3] Generates binary adder (ripple carry, more improved)
@@ -134,18 +147,18 @@ def print_RC2(c, n, ina, inb, out):
 # n = number bits each summand has
 def print_RC3(c, n, ina, inb, out):
     # Bit 0:
-    c.write_op("o0", ina[0], inb[0], "+")
-    c.write_op("c1", ina[0], inb[0], "&")
+    c.xor_op("o0", ina[0], inb[0])
+    c.and_op("c1", ina[0], inb[0])
     # Other bits
     for i in range(1, n):
-        c.write_op(f"t0_{i}", ina[i], inb[i], "+")
-        c.write_op(out[i], f"t0_{i}", f"c{i}", "+")
-        c.write_op(f"t1_{i}", ina[i], f"c{i}", "+")
-        c.write_op(f"t2_{i}", f"t0_{i}", f"t1_{i}", "&")
+        c.xor_op(f"t0_{i}", ina[i], inb[i])
+        c.xor_op(out[i], f"t0_{i}", f"c{i}")
+        c.xor_op(f"t1_{i}", ina[i], f"c{i}")
+        c.and_op(f"t2_{i}", f"t0_{i}", f"t1_{i}")
         if i == (n - 1):
-            c.write_op(out[i + 1], ina[i], f"t2_{i}", "+")
+            c.xor_op(out[i + 1], ina[i], f"t2_{i}")
         else:
-            c.write_op(f"c{i+1}", ina[i], f"t2_{i}", "+")
+            c.xor_op(f"c{i+1}", ina[i], f"t2_{i}")
 
 
 # [KS] Generates binary adder (koggle stone)
@@ -157,8 +170,8 @@ def print_KS(c, n, ina, inb, out):
 
     # Initialization - level 0
     for i in range(0, n):
-        c.write_op(f"P0_{i}", ina[i], inb[i], "+")
-        c.write_op(f"G0_{i}", ina[i], inb[i], "&")
+        c.xor_op(f"P0_{i}", ina[i], inb[i])
+        c.and_op(f"G0_{i}", ina[i], inb[i])
 
     # Further levels
     t_cnt = 0
@@ -173,17 +186,15 @@ def print_KS(c, n, ina, inb, out):
         # Orange
         for i in range(distance, n):
             if not (0 <= i < distance_next):
-                c.write_op(
-                    f"P{level}_{i}", f"P{level-1}_{i}", f"P{level-1}_{i-distance}", "&"
-                )
+                c.and_op(f"P{level}_{i}", f"P{level-1}_{i}", f"P{level-1}_{i-distance}")
 
-            c.write_op(f"t{t_cnt}", f"P{level-1}_{i}", f"G{level-1}_{i-distance}", "&")
-            c.write_op(f"G{level}_{i}", f"t{t_cnt}", f"G{level-1}_{i}", "+")
+            c.and_op(f"t{t_cnt}", f"P{level-1}_{i}", f"G{level-1}_{i-distance}")
+            c.xor_op(f"G{level}_{i}", f"t{t_cnt}", f"G{level-1}_{i}")
             t_cnt += 1
 
     # Postprocessing
     for i in range(1, n):
-        c.write_op(out[i], f"P0_{i}", f"G{levels}_{i-1}", "+")
+        c.xor_op(out[i], f"P0_{i}", f"G{levels}_{i-1}")
 
 
 # [sklansky] Generates binary adder (sklansky)
@@ -195,8 +206,8 @@ def print_sklansky(c, n, ina, inb, out):
 
     # Initialization - level 0
     for i in range(0, n):
-        c.write_op(f"P0_{i}", ina[i], inb[i], "+")
-        c.write_op(f"G0_{i}", ina[i], inb[i], "&")
+        c.xor_op(f"P0_{i}", ina[i], inb[i])
+        c.and_op(f"G0_{i}", ina[i], inb[i])
 
     # Further levels
     step = 1
@@ -211,17 +222,15 @@ def print_sklansky(c, n, ina, inb, out):
             else:
                 prev = ((i // step)) * step - 1
                 if i >= (2**level):
-                    c.write_op(
-                        f"P{level}_{i}", f"P{level-1}_{i}", f"P{level-1}_{prev}", "&"
-                    )
-                c.write_op(f"t{t_cnt}", f"P{level-1}_{i}", f"G{level-1}_{prev}", "&")
-                c.write_op(f"G{level}_{i}", f"t{t_cnt}", f"G{level-1}_{i}", "+")
+                    c.and_op(f"P{level}_{i}", f"P{level-1}_{i}", f"P{level-1}_{prev}")
+                c.and_op(f"t{t_cnt}", f"P{level-1}_{i}", f"G{level-1}_{prev}")
+                c.xor_op(f"G{level}_{i}", f"t{t_cnt}", f"G{level-1}_{i}")
                 t_cnt += 1
         step = step * 2
 
     # Postprocessing
     for i in range(1, n):
-        c.write_op(out[i], f"P0_{i}", f"G{levels}_{i-1}", "+")
+        c.xor_op(out[i], f"P0_{i}", f"G{levels}_{i-1}")
     c.assign(out[n], f"G{levels}_{n-1}")
 
 
@@ -261,8 +270,8 @@ def print_BK(c, n, ina, inb, out):
 
     # Initialization - level 0
     for i in range(0, n):
-        c.write_op(f"P0_{i}", ina[i], inb[i], "+")
-        c.write_op(f"G0_{i}", ina[i], inb[i], "&")
+        c.xor_op(f"P0_{i}", ina[i], inb[i])
+        c.and_op(f"G0_{i}", ina[i], inb[i])
         valid[0][i] = True
 
     t_cnt = 0
@@ -281,14 +290,13 @@ def print_BK(c, n, ina, inb, out):
             else:
                 inp = find_valid_idx(valid, level - 1, prev + 1, n)
                 if not ((n == next_power_of_2(n)) and ((2**level) - 1) == inp):
-                    c.write_op(
+                    c.and_op(
                         f"P{level}_{inp}",
                         f"P{level-1}_{inp}",
                         f"P{level-1}_{prev}",
-                        "&",
                     )
-                c.write_op(f"t{t_cnt}", f"P{level-1}_{inp}", f"G{level-1}_{prev}", "&")
-                c.write_op(f"G{level}_{inp}", f"t{t_cnt}", f"G{level-1}_{inp}", "+")
+                c.and_op(f"t{t_cnt}", f"P{level-1}_{inp}", f"G{level-1}_{prev}")
+                c.xor_op(f"G{level}_{inp}", f"t{t_cnt}", f"G{level-1}_{inp}")
                 t_cnt += 1
                 valid[level][inp] = True
                 prev = find_valid_idx(valid, level - 1, inp + 1, n)
@@ -311,12 +319,10 @@ def print_BK(c, n, ina, inb, out):
                 continue
             if is_valid(valid, level - 1, prev):
                 last_valid_level = find_valid_level(valid, inp)
-                c.write_op(
-                    f"t{t_cnt}", f"P{last_valid_level}_{inp}", f"G{level-1}_{prev}", "&"
+                c.and_op(
+                    f"t{t_cnt}", f"P{last_valid_level}_{inp}", f"G{level-1}_{prev}"
                 )
-                c.write_op(
-                    f"G{level}_{inp}", f"t{t_cnt}", f"G{last_valid_level}_{inp}", "+"
-                )
+                c.xor_op(f"G{level}_{inp}", f"t{t_cnt}", f"G{last_valid_level}_{inp}")
                 t_cnt += 1
                 valid[level][inp] = True
             else:
@@ -328,23 +334,23 @@ def print_BK(c, n, ina, inb, out):
     # Postprocessing
     for i in range(1, n):
         last_valid_level = find_valid_level(valid, i - 1)
-        c.write_op(out[i], f"P0_{i}", f"G{last_valid_level}_{i-1}", "+")
+        c.xor_op(out[i], f"P0_{i}", f"G{last_valid_level}_{i-1}")
 
     last_valid_level = find_valid_level(valid, n - 1)
     c.assign(f"G{last_valid_level}_{n-1}", out[n])
 
 
-def print_adder(adder_circuit_function, f, n, mod, test):
+def print_adder(adder_circuit_function, f, n, mod, test, flex):
     # mod = True: compute carry-out, otherwise computation addition mod 2**n
     no = n if mod else n + 1
     ina = [f"i{i}" for i in range(0, n)]
     inb = [f"i{i}" for i in range(n, 2 * n)]
     out = [f"o{i}" for i in range(0, no)]
-    c = Circuit(ina + inb, out)
+    c = Circuit(ina + inb, out, flex=flex)
     if mod:
         adder_circuit_function(c, n - 1, ina[:-1], inb[:-1], out[:-1] + ["last_carry"])
-        c.write_op("sum_last", ina[-1], inb[-1], "+")
-        c.write_op(out[-1], "sum_last", "last_carry", "+")
+        c.xor_op("sum_last", ina[-1], inb[-1])
+        c.xor_op(out[-1], "sum_last", "last_carry")
     else:
         adder_circuit_function(c, n, ina, inb, out)
     f.write(c.as_string())
@@ -393,6 +399,7 @@ def cli():
         required=True,
         help="Select the adder type (RC = ripple carry v1, RC2 = ripple carry v2, RC3 = ripple carry v3, KS = koggle stone, sklansky = sklansky, BK = brent kung)",
     )
+    parser.add_argument("--flex", action="store_true", help="Use flex AND gadgets.")
     parser.add_argument(
         "--out", type=Path, required=True, help="Path of the output file."
     )
@@ -408,7 +415,7 @@ def main():
         adder_type = adder_type.removesuffix("mod")
     print_function = globals()[f"print_{adder_type}"]
     with open(args.out, "w") as f:
-        print_adder(print_function, f, args.n, mod, args.test)
+        print_adder(print_function, f, args.n, mod, args.test, args.flex)
 
 
 if __name__ == "__main__":

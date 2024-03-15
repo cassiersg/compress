@@ -37,7 +37,7 @@ from pathlib import Path
 import pickle
 import re
 import time
-from typing import Sequence, Mapping, Tuple, Set, NewType, Any
+from typing import Sequence, Mapping, Tuple, Set, NewType, Any, Optional
 
 import cpmpy as cp
 import networkx as nx
@@ -114,6 +114,7 @@ class Circuit:
     inputs: list[Variable] = field(default_factory=list)
     outputs: list[Variable] = field(default_factory=list)
     controls: list[Variable] = field(default_factory=list)
+    control_widths: dict[Variable, Optional[int]] = field(default_factory=dict)
     # Ways of computating intermediate variables.
     computations: list[Set[Computation]] = field(default_factory=list)
     # Maps the variables to indices in the computation list.
@@ -131,9 +132,10 @@ class Circuit:
         assert output not in self.outputs
         self.outputs.append(output)
 
-    def _add_control(self, control):
+    def _add_control(self, control: Variable, width=None):
         assert control not in self.controls
         self.controls.append(control)
+        self.control_widths[control] = width
 
     def _add_computation(self, computation: Computation):
         for res in computation.outputs:
@@ -193,12 +195,20 @@ class Circuit:
         def parse_ioline(line):
             return [Variable(x) for x in line.strip().split()[1:] if x]
 
+        # IO line with multi-bit signals.
+        re_var = re.compile(r"^(?P<var>\w+)(?:\[(?P<idx>\d+)\])?$")
+
+        def parse_ioline_vec(line):
+            res = [re_var.match(x) for x in line.split()[1:] if x]
+            return [x.group("var", "idx") for x in res]
+
         for input_ in parse_ioline(inputs_line):
             c._add_input(input_)
         for output in parse_ioline(outputs_line):
             c._add_output(output)
-        for control in parse_ioline(controls_line):
-            c._add_control(control)
+        for control, width in parse_ioline_vec(controls_line):
+            print(f"{control=} {width=}")
+            c._add_control(Variable(control), int(width))
         # Process computations
         computation_lines = [
             line
@@ -440,7 +450,8 @@ class GateImpl:
     area_ge: float
     rng_area_ge: float
     outputs: list[str]
-    controls: list[tuple[str, int]]
+    # Each control has a port name, a latency and a width
+    controls: list[tuple[str, int, int]]
 
     @classmethod
     def parse(
@@ -463,7 +474,10 @@ class GateImpl:
                 rnd_req_fn(num_shares),
                 rnd_req_str,
             )
-        controls = [(c["name"], c["latency"]) for c in toml_gadget.get("control", [])]
+        controls = [
+            (c["name"], c["latency"], c.get("n_bits", 1))
+            for c in toml_gadget.get("control", [])
+        ]
         outputs = [o["name"] for o in toml_gadget.get("output", [{"name": "out"}])]
         return cls(
             name=toml_gadget["name"],
@@ -953,9 +967,9 @@ class VerilogGenerator:
         control_decls = [
             (
                 '(* fv_type="control", fv_latency=0, fv_count=1 *)',
-                f"input {x};",
+                f"input {x};" if w is None else f"input [{w}-1:0] {x};",
             )
-            for x in self.circuit.controls
+            for x, w in self.circuit.control_widths.items()
         ]
         return [clk_decl] + input_decls + output_decls + rnd_decls + control_decls
 
@@ -991,7 +1005,7 @@ class VerilogGenerator:
         for gadget, _, glat, computation, _ in self.gadgets:
             gcontrols = self.gadget_library[gadget].controls
             assert len(gcontrols) == len(computation.controls)
-            for (_, lat), ctrl_name in zip(gcontrols, computation.controls):
+            for (_, lat, _), ctrl_name in zip(gcontrols, computation.controls):
                 assert glat - lat >= 0
                 res[ctrl_name].add(glat - lat)
         return res
@@ -1000,11 +1014,14 @@ class VerilogGenerator:
         lines = []
         for control, lats in self.control_usage().items():
             max_lat = max(lats)
-            lines.append(f"wire {control}_0 = {control};")
-            lines.extend(f"wire {control}_{lat};" for lat in range(1, max_lat))
+            w = self.circuit.control_widths[control]
+            wstr = "" if w is None else f"[{w}-1:0] "
+            print(f"{w=}")
+            lines.append(f"wire {wstr}{control}_0 = {control};")
+            lines.extend(f"reg {wstr}{control}_{lat};" for lat in range(1, max_lat + 1))
             lines.extend(
                 f"always @(posedge clk) {control}_{lat} <= {control}_{lat-1};"
-                for lat in range(1, max_lat)
+                for lat in range(1, max_lat + 1)
             )
         return lines
 
@@ -1141,9 +1158,16 @@ class VerilogGenerator:
             )
             for op, lats in zip(operands_ports, self.gadget_library[gadget].latencies):
                 ports.update((n, f"{op}_{l-l_op}") for l_op, n in lats.items())
-            for (control, lat), ctrl_name in zip(
+            for (control, lat, width), ctrl_name in zip(
                 self.gadget_library[gadget].controls, computation.controls
             ):
+                w = self.circuit.control_widths[ctrl_name]
+                if w is None:
+                    assert width == 1
+                else:
+                    assert (
+                        w == width
+                    ), f"{gadget_name=} {control=} {lat=} {width=} {ctrl_name=} {w=}"
                 ports[control] = f"{ctrl_name}_{l-lat}"
             lines.extend(self.gadget_instantiation(gadget_name, f"comp_{v}_{l}", ports))
         # MSKreg instances
