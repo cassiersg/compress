@@ -5,8 +5,8 @@ GADGETS_CONFIG ?= ./gadget_library/gadgets_opt.toml
 LATS ?=4 5 6
 DS ?= 2 3 4 5
 
-export SYNTH_LIB=synthesis/stdcells.lib
-export VERILOG_CELLS=synthesis/stdcells.v
+export SYNTH_LIB=synthesis/nangate45-pdk/stdcells.lib
+export VERILOG_CELLS=synthesis/nangate45-pdk/stdcells.v
 export SYNTH_SRCS=gadget_library/BIN/*.v gadget_library/MSK/*.v gadget_library/RNG/trivium/*.v
 export VINCLUDE=gadget_library/MSK
 
