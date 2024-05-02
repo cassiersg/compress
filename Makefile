@@ -5,6 +5,10 @@ GADGETS_CONFIG ?= ./gadget_library/gadgets_opt.toml
 LATS ?=4 5 6
 DS ?= 2 3 4 5
 
+SKIP_BEH_SIMU ?= 0
+SKIP_STRUCT_SIMU ?= 0
+TIMEOUT_COMPRESS ?= 3600
+
 export SYNTH_LIB=synthesis/nangate45-pdk/stdcells.lib
 export VERILOG_CELLS=synthesis/nangate45-pdk/stdcells.v
 export SYNTH_SRCS=gadget_library/BIN/*.v gadget_library/MSK/*.v gadget_library/RNG/trivium/*.v
@@ -68,7 +72,7 @@ $(call circuit_dir,$(1),$(2))/design.v: $(CIRCUIT) $(RNG_AREA) $(call GADGETS_AR
 		--outstats=$$(dir $$@)/stats.json \
 		--outdump=$$(dir $$@)/compress_model.pkl \
 		--gadgets-config=$(GADGETS_CONFIG) \
-		--time-limit 3600 \
+		--time-limit $(TIMEOUT_COMPRESS) \
 		> $$(dir $$@)/compress.log
 	cp $$@ $$(dir $$@)/$(CIRCUIT_NAME).v
 	-cp $$@h $$(dir $$@)/$(CIRCUIT_NAME).vh
@@ -106,7 +110,13 @@ $(addsuffix /struct_simu/simu.log,$(CIRCUIT_DIRS)): %/struct_simu/simu.log: %/sy
 # SYNTHESIS
 ALL_DESIGNS = $(addsuffix /synth/design.v,$(CIRCUIT_DIRS))
 ALL_AREAS = $(addsuffix /synth/area.json,$(CIRCUIT_DIRS))
-$(ALL_DESIGNS): %/synth/design.v: %/design.v $(SYNTH_SCRIPT) | %/beh_simu/success
+
+BEH_SIMU_DEP=
+ifeq ($(SKIP_BEH_SIMU), 0)
+BEH_SIMU_DEP=beh_simu/success
+endif
+
+$(ALL_DESIGNS): %/synth/design.v: %/design.v $(SYNTH_SCRIPT) | %/$(BEH_SIMU_DEP)
 	@mkdir -p $(dir $@)
 	SYNTH_SRCS="$(SYNTH_SRCS) $<" SYNTH_TOP=$(CIRCUIT_NAME) VDEFINES="-DDEFAULTSHARES=$(call circuit_nshares,$*)" \
 	RESDIR=$(dir $@) \
@@ -114,7 +124,10 @@ $(ALL_DESIGNS): %/synth/design.v: %/design.v $(SYNTH_SCRIPT) | %/beh_simu/succes
 
 $(ALL_AREAS): %/area.json: %/design.v
 
+ALL_FLOWS=$(ALL_AREAS) 
+ifeq ($(SKIP_STRUCT_SIMU), "0")
 ALL_FLOWS=$(addsuffix /struct_simu/success,$(CIRCUIT_DIRS))
+endif
 
 AREA_REPORT = $(WORK)/$(CIRCUIT_NAME)_area.csv
 $(AREA_REPORT): $(ALL_FLOWS)
