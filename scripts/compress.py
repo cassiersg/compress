@@ -208,7 +208,7 @@ class Circuit:
             c._add_output(output)
         for control, width in parse_ioline_vec(controls_line):
             print(f"{control=} {width=}")
-            c._add_control(Variable(control), int(width))
+            c._add_control(Variable(control), int(width) if width is not None else 1)
         # Process computations
         computation_lines = [
             line
