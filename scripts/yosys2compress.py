@@ -146,6 +146,11 @@ def parse_ports(topmod, varmap, txt_out):
     output_ports = []
     input_bits = []
     output_bits = []
+    raw_ports_cfg = {
+            "inputs":{},
+            "outputs":{},
+            "controls":{},
+            }
     for pname in top_ports:
         # Get the port
         port = top_ports[pname]
@@ -156,23 +161,16 @@ def parse_ports(topmod, varmap, txt_out):
         # Add to map the corresponding bits
         for bi,be in enumerate(port['bits']):
             variables_map[be] = "{}{}".format(pname,bi)
-            list_port_sigs += [variables_map[be]]
-            list_port_bits += [be]
-        # Append to corresponding port
-        if port_direction == "input":
-            input_ports += list_port_sigs
-            input_bits += list_port_bits
-        elif port_direction == "output":
-            output_ports += list_port_sigs
-            output_bits += list_port_bits
-        else:
-            raise ValueError("Port direction not handled")
-    # Create the INPUT/OUTPUT declaration
-    input_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, input_ports)
-    output_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, output_ports)
-    txt_out.append("INPUTS {}".format(input_str_port_sigs))
-    txt_out.append("OUTPUTS {}".format(output_str_port_sigs))
-    return input_bits, output_bits
+            varname = variables_map[be]
+            varbit = be
+            if port_direction == "input":
+                raw_ports_cfg["inputs"][varname] = varbit
+            elif port_direction == "output":
+                raw_ports_cfg["outputs"][varname] = varbit
+            else:
+                raise ValueError("Port direction not handled")
+    # Return the port configuration
+    return raw_ports_cfg
 
 def filter_name(name):
     to_remove = ['$','.',':']
@@ -261,7 +259,29 @@ def process_inst_AND(cell_inst, varmap, lines_out, index):
     line = "{} = {} & {}".format(varn_outy, varn_ina, varn_inb)
     lines_out.append(line)
 
-def process_instance(cell_name, cell_inst, varmap, lines_out, index):
+def process_inst_MUX(cell_inst, varmap, lines_out, index, ports_cfg):
+    ina_index = cell_inst['connections']['A'][0]
+    inb_index = cell_inst['connections']['B'][0]
+    outy_index = cell_inst['connections']['Y'][0]
+    ins_index = cell_inst['connections']['S'][0]
+    # Fetch variable name
+    varn_ina = fetch_variable_name(varmap, ina_index, index)
+    varn_inb = fetch_variable_name(varmap, inb_index, index)
+    varn_outy = fetch_variable_name(varmap, outy_index, index)
+    varn_ins = fetch_variable_name(varmap, ins_index, index)
+    # Create the line
+    line = "{} = MUX2[{}]({},{})".format(
+            varn_outy, varn_ins, varn_ina, varn_inb
+            )
+    lines_out.append(line)
+    # Append control bits 
+    ctrl_var = varn_ins
+    ctrl_bit = ins_index
+    if ctrl_var not in ports_cfg["controls"]:
+        ports_cfg["controls"][ctrl_var] = ctrl_bit
+    
+
+def process_instance(cell_name, cell_inst, varmap, lines_out, index, ports_cfg):
     inst_type = cell_inst['type']
     if inst_type == '$_NOT_':
         process_inst_NOT(cell_inst, varmap, lines_out, index)
@@ -273,14 +293,30 @@ def process_instance(cell_name, cell_inst, varmap, lines_out, index):
         process_inst_G16mul(cell_inst, varmap, lines_out, index)
     elif inst_type == "$_AND_":
         process_inst_AND(cell_inst, varmap, lines_out, index)
+    elif inst_type == "$_MUX_":
+        process_inst_MUX(cell_inst, varmap, lines_out, index, ports_cfg)
     else:
+        print(cell_name, cell_inst)
         raise ValueError("Cell type '{}' not handled".format(inst_type))
 
-def parse_cells(topmod, varmap, lines_out):
+def parse_cells(topmod, varmap, lines_out, ports_cfg):
     index_cnt = Counter()
     for instance in topmod['cells']:
         cell_inst = topmod['cells'][instance]
-        process_instance(instance, cell_inst, varmap, lines_out, index_cnt)
+        process_instance(instance, cell_inst, varmap, lines_out, index_cnt, ports_cfg)
+
+def add_ports_definition(lines, ports_cfg):
+    # First, remove the inputs that are signals
+    for c in ports_cfg["controls"].keys():
+        if c in ports_cfg["inputs"]:
+            del ports_cfg["inputs"][c]
+    # Second create the lines
+    inputs_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["inputs"].keys())
+    outputs_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["outputs"].keys())
+    controls_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["controls"].keys())
+    lines.insert(0, "INPUTS {}".format(inputs_str_port_sigs)) 
+    lines.insert(1, "OUTPUTS {}".format(outputs_str_port_sigs)) 
+    lines.insert(2, "CONTROLS {}".format(controls_str_port_sigs)) 
 
 if __name__ == "__main__":
     # Parse args
@@ -297,7 +333,7 @@ if __name__ == "__main__":
     circuit_compress_lines = []
 
     # Process inputs/output ports
-    input_bits, output_bits = parse_ports(
+    dic_ports = parse_ports(
             yosys_netlist['modules'][args.top],
             variables_map,
             circuit_compress_lines
@@ -307,18 +343,22 @@ if __name__ == "__main__":
     parse_cells(
             yosys_netlist['modules'][args.top],
             variables_map,
-            circuit_compress_lines
+            circuit_compress_lines,
+            dic_ports
             )
+
+    # Add the ports instances
+    add_ports_definition(circuit_compress_lines, dic_ports)
 
     # Create the architecture builder in order from generated lines
     # appart from INPUT/OUTPUTS
     builder = InOrderArchitectureBuilder()
-    for s in circuit_compress_lines[2:]:
+    for s in circuit_compress_lines[3:]:
         builder.add_statement(s)
 
     # Solve order and recover statement in order
     builder.solve()
-    circuit_compress_lines[2:] = builder.get_sorted_statements()
+    circuit_compress_lines[3:] = builder.get_sorted_statements()
 
     # Dump all lines in a file
     with open(args.compress_file, 'w') as f:
