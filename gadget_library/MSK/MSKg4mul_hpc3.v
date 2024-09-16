@@ -12,6 +12,9 @@
 `ifdef FULLVERIF
 (* fv_prop = "PINI", fv_strat = "assumed", fv_order=d *)
 `endif
+`ifdef MATCHI
+(* matchi_prop = "PINI", matchi_strat = "assumed", matchi_shares=d, matchi_arch="pipeline" *)
+`endif
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
@@ -19,12 +22,12 @@ module MSKg4mul_hpc3 #(parameter d=`DEFAULTSHARES) (ina0, ina1, inb0, inb1, ina0
 `include "MSKand_hpc3.vh"
 localparam mat_rnd = hpc3rnd/2;
 
-(* fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina0, ina1;
-(* fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] ina0_prev, ina1_prev;
-(* fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inb0, inb1;
-(* fv_type = "clock" *) input clk;
-(* fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out0, out1;
-(* fv_type = "random", fv_count=1, fv_rnd_lat_0=0, fv_rnd_count_0=2*hpc3rnd *)
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina0, ina1;
+(* matchi_type = "sharing", matchi_latency = 1, fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] ina0_prev, ina1_prev;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inb0, inb1;
+(* matchi_type = "clock", fv_type = "clock" *) input clk;
+(* matchi_type = "sharing", matchi_latency = 1, fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out0, out1;
+(* matchi_type = "random", matchi_latency = 0, fv_type = "random", fv_count=1, fv_rnd_lat_0=0, fv_rnd_count_0=2*hpc3rnd *)
 input [2*hpc3rnd-1:0] rnd;
 
 wire [d-1:0] inb0_ref, inb1_ref;
