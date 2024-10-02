@@ -5,6 +5,8 @@ GADGETS_CONFIG ?= ./gadget_library/gadgets_opt.toml
 LATS ?=4 5 6
 DS ?= 2 3 4 5
 
+YOSYS?=yosys
+
 SKIP_BEH_SIMU ?= 0
 SKIP_STRUCT_SIMU ?= 0
 TIMEOUT_COMPRESS ?= 3600
@@ -34,7 +36,7 @@ $(call GADGET_AREA_FILE,%,$(1)): gadget_library/MSK/%.v $(SYNTH_SCRIPT)
 	VDEFINES="-DDEFAULTSHARES=$(1)" \
 	SYNTH_TOP=$$* \
 	RESDIR=$$(dir $$@) \
-	yosys -qq -c $(SYNTH_SCRIPT) -l  $$(dir $$@)/synth.log
+	$(YOSYS) -qq -c $(SYNTH_SCRIPT) -l  $$(dir $$@)/synth.log
 
 $(call GADGETS_AREA_CSV,$(1)): $(foreach G,$(GADGETS),$(call GADGET_AREA_FILE,$G,$(1)))
 	$(PYTHON) $(SCRIPT_DIR)/summarize_gadget_area.py --outcsv=$$@ $$^
@@ -47,7 +49,7 @@ $(WORK)/rng_area/nbits_%/area.json: gadget_library/RNG/trivium/*.v
 	VDEFINES="-DDEFAULTRND=$*" \
 	SYNTH_TOP=prng_top \
 	RESDIR=$(dir $@) \
-	yosys -qq -c $(SYNTH_SCRIPT) -l  $(dir $@)/synth.log
+	$(YOSYS) -qq -c $(SYNTH_SCRIPT) -l  $(dir $@)/synth.log
 
 RNG_AREA = $(WORK)/rng_area/area_ge.txt
 $(RNG_AREA): $(WORK)/rng_area/nbits_512/area.json
@@ -120,7 +122,7 @@ $(ALL_DESIGNS): %/synth/design.v: %/design.v $(SYNTH_SCRIPT) | %/$(BEH_SIMU_DEP)
 	@mkdir -p $(dir $@)
 	SYNTH_SRCS="$(SYNTH_SRCS) $<" SYNTH_TOP=$(CIRCUIT_NAME) VDEFINES="-DDEFAULTSHARES=$(call circuit_nshares,$*)" \
 	RESDIR=$(dir $@) \
-	yosys -qq -c $(SYNTH_SCRIPT) -l  $(dir $@)/synth.log
+	$(YOSYS) -qq -c $(SYNTH_SCRIPT) -l  $(dir $@)/synth.log
 
 $(ALL_AREAS): %/area.json: %/design.v
 
