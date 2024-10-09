@@ -898,7 +898,6 @@ class VerilogGenerator:
 
     def file_header(self):
         return [
-            "`timescale 1ns/1ps\n",
             f"// latency = {self.latency}\n",
             f"// Fully pipeline PINI circuit in {self.latency} clock cycles.",
             "// This file has been automatically generated.",
@@ -1046,7 +1045,8 @@ class VerilogGenerator:
         # Module header
         lines += self.file_header()
         lines.append(f"module {self.module_name} # ( parameter d={self.num_shares} ) (")
-        lines += [f"    {x}," for x in self.ports()]
+        lines += [f"    {x}," for x in self.ports()[:-1]]
+        lines += [f"    {x}" for x in self.ports()[-1:]] # The last port does not need the comma
         # I/Os
         lines.append(");")
         lines.append('`include "MSKand_hpc1.vh"')
