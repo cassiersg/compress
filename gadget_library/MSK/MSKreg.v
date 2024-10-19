@@ -15,7 +15,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKreg #(parameter d=`DEFAULTSHARES, parameter count=1) (clk, in, out);
+module MSKreg #(parameter integer d=`DEFAULTSHARES, parameter integer count=1) (clk, in, out);
 
 (* fv_type = "clock" *)   input clk;
 (* fv_type = "sharing", fv_latency = 0, fv_count=count *) input  [count*d-1:0] in;

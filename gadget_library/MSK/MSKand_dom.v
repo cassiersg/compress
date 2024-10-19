@@ -15,31 +15,35 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_dom #(parameter d=`DEFAULTSHARES) (ina, inb, rnd, clk, out);
+module MSKand_dom #(parameter integer d=`DEFAULTSHARES) (ina, inb, rnd, clk, out);
 
-localparam n_rnd=d*(d-1)/2;
+localparam integer n_rnd=d*(d-1)/2;
 
-(* fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina, inb;
-(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = n_rnd *) input [n_rnd-1:0] rnd;
-(* fv_type = "clock" *) input clk;
-(* fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
+(* fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] ina, inb;
+(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = n_rnd *)
+input [n_rnd-1:0] rnd;
+(* fv_type = "clock" *)
+input clk;
+(* fv_type = "sharing", fv_latency = 1 *)
+output [d-1:0] out;
 
 genvar i,j;
 
 // unpack vector to matrix --> easier for randomness hendeling
-wire [d-1:0] rnd_mat [d-1:0]; 
-for(i=0; i<d; i=i+1) begin: igen
+wire [d-1:0] rnd_mat [d];
+for(i=0; i<d; i=i+1) begin: gen_igen
     assign rnd_mat[i][i] = 0;
-    for(j=i+1; j<d; j=j+1) begin: jgen
+    for(j=i+1; j<d; j=j+1) begin: gen_jgen
         assign rnd_mat[j][i] = rnd[((i*d)-i*(i+1)/2)+(j-1-i)];
         assign rnd_mat[i][j] = rnd_mat[j][i];
     end
 end
 
-for(i=0; i<d; i=i+1) begin: ParProdI
+for(i=0; i<d; i=i+1) begin: gen_ParProdI
     reg [d-1:0] rfrsh_reg;
     assign out[i] = ^rfrsh_reg;
-    for(j=0; j<d; j=j+1) begin: ParProdJ
+    for(j=0; j<d; j=j+1) begin: gen_ParProdJ
         wire mult_wire = ina[i] & inb[j];
         wire rfrsh_wire = mult_wire ^ rnd_mat[i][j];
         always @(posedge clk) begin

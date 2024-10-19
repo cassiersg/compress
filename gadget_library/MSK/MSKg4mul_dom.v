@@ -15,23 +15,37 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKg4mul_dom #(parameter d=`DEFAULTSHARES) (ina0, ina1, inb0, inb1, rnd, clk, out0, out1);
+module MSKg4mul_dom #(parameter integer d=`DEFAULTSHARES)
+(
+    ina0,
+    ina1,
+    inb0,
+    inb1,
+    rnd,
+    clk,
+    out0,
+    out1
+);
 
-localparam n_rnd=2*d*(d-1)/2;
+localparam integer n_rnd=2*d*(d-1)/2;
 
-(* fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina0, ina1, inb0, inb1;
-(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = n_rnd *) input [n_rnd-1:0] rnd;
-(* fv_type = "clock" *) input clk;
-(* fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out0, out1;
+(* fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] ina0, ina1, inb0, inb1;
+(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = n_rnd *)
+input [n_rnd-1:0] rnd;
+(* fv_type = "clock" *)
+input clk;
+(* fv_type = "sharing", fv_latency = 1 *)
+output [d-1:0] out0, out1;
 
 genvar i,j;
 
 // unpack vector to matrix --> easier for randomness hendeling
-wire [1:0] rnd_mat [d-1:0][d-1:0];
+wire [1:0] rnd_mat [d][d]; // Same as [d-1:0][d-1:0], but respect verible linting rules;
 
-for(i=0; i<d; i=i+1) begin: igen
+for(i=0; i<d; i=i+1) begin: gen_igen
     assign rnd_mat[i][i] = 2'b0;
-    for(j=i+1; j<d; j=j+1) begin: jgen
+    for(j=i+1; j<d; j=j+1) begin: gen_jgen
         integer offset = ((i*d)-i*(i+1)/2)+(j-1-i);
         assign rnd_mat[j][i] = rnd[2*offset +: 2];
         assign rnd_mat[i][j] = rnd_mat[j][i];
@@ -39,10 +53,10 @@ for(i=0; i<d; i=i+1) begin: igen
 end
 
 genvar k;
-generate 
-for(i=0; i<d; i=i+1) begin: ParProdI
+generate
+for(i=0; i<d; i=i+1) begin: gen_ParProdI
     reg [d-1:0] rfrsh_reg0, rfrsh_reg1;
-    for(j=0; j<d; j=j+1) begin: ParProdJ
+    for(j=0; j<d; j=j+1) begin: gen_ParProdJ
         wire [1:0] mult_wire;
         G4_mul mul(
             .x({ina1[i],ina0[i]}),

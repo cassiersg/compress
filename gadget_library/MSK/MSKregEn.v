@@ -17,7 +17,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKregEn #(parameter d=`DEFAULTSHARES, parameter count=1) (clk, en, in, out);
+module MSKregEn #(parameter integer d=`DEFAULTSHARES, parameter integer count=1) (clk, en, in, out);
 
 input clk;
 input en;

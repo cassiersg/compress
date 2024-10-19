@@ -18,17 +18,35 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_hpc3o_swapped_tof #(parameter d=`DEFAULTSHARES) (ina, inb, inb_prev, inc, rnd, clk, out);
+module MSKand_hpc3o_swapped_tof #(parameter integer d=`DEFAULTSHARES)
+(
+    ina,
+    inb,
+    inb_prev,
+    inc,
+    rnd,
+    clk,
+    out
+);
 
 `include "MSKand_hpc3.vh"
 
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina;
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inb;
-(* matchi_type = "sharing", matchi_latency = 1, fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] inb_prev;
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inc;
-(* matchi_type = "random", matchi_latency = 0, fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *) input [hpc3rnd-1:0] rnd;
-(* matchi_type = "clock", fv_type = "clock" *) input clk;
-(* matchi_type = "sharing", matchi_latency = 1, fv_type = "random", fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] ina;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] inb;
+(* matchi_type = "sharing", matchi_latency = 1, fv_type = "sharing", fv_latency = 1 *)
+input  [d-1:0] inb_prev;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] inc;
+(* matchi_type = "random", matchi_latency = 0 *)
+(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *)
+input [hpc3rnd-1:0] rnd;
+(* matchi_type = "clock", fv_type = "clock" *)
+input clk;
+(* matchi_type = "sharing", matchi_latency = 1 *)
+(* fv_type = "random", fv_type = "sharing", fv_latency = 1 *)
+output [d-1:0] out;
 
 MSKand_hpc3o_tof #(.d(d)) inner(
     .ina(inb),

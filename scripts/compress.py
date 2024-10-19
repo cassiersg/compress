@@ -1044,7 +1044,7 @@ class VerilogGenerator:
         lines = []
         # Module header
         lines += self.file_header()
-        lines.append(f"module {self.module_name} # ( parameter d={self.num_shares} ) (")
+        lines.append(f"module {self.module_name} # ( parameter integer d={self.num_shares} ) (")
         lines += [f"    {x}," for x in self.ports()[:-1]]
         lines += [f"    {x}" for x in self.ports()[-1:]] # The last port does not need the comma
         # I/Os

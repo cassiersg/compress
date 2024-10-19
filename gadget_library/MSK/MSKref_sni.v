@@ -15,33 +15,37 @@
 `ifndef DEFAULTSHARES
   `define DEFAULTSHARES 2
 `endif
-module MSKref_sni #(parameter d=`DEFAULTSHARES) (in, clk, out, rnd);
+module MSKref_sni #(parameter integer d=`DEFAULTSHARES) (in, clk, out, rnd);
 
 `include "MSKref_sni.vh"
 
-(* syn_keep="true", keep="true", fv_type="sharing", fv_latency=ref_rndlat *) input [d-1:0] in;
-(* syn_keep="true", keep="true", fv_type="sharing", fv_latency=ref_rndlat+1 *) output reg [d-1:0] out;
-(* fv_type="clock" *) input clk;
-(* syn_keep="true", keep="true", fv_type= "random", fv_count=1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = ref_n_rnd *)
+(* syn_keep="true", keep="true", fv_type="sharing", fv_latency=ref_rndlat *)
+input [d-1:0] in;
+(* syn_keep="true", keep="true", fv_type="sharing", fv_latency=ref_rndlat+1 *)
+output reg [d-1:0] out;
+(* fv_type="clock" *)
+input clk;
+(* syn_keep="true", keep="true" *)
+(* fv_type= "random", fv_count=1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = ref_n_rnd *)
 input [ref_n_rnd-1:0] rnd;
 
 reg [d-1:0] share0;
 always @(posedge clk)
   out <= in ^ share0;
 
-if (d == 1) begin
+if (d == 1) begin: gen_case_d1
     always @(*) begin
         share0 = 1'b0;
     end
-end else if (d == 2) begin
+end else if (d == 2) begin: gen_case_d2
     always @(*) begin
         share0 = {rnd[0], rnd[0]};
     end
-end else if (d==3) begin
+end else if (d==3) begin: gen_case_d3
     always @(posedge clk) begin
         share0 <= {rnd[0]^rnd[1], rnd[1], rnd[0]};
     end
-end else if (d==4 || d==5) begin
+end else if (d==4 || d==5) begin: gen_case_d4
     wire [d-1:0] r1 = rnd[d-1:0];
     always @(posedge clk) begin
         share0 <= r1[d-1:0] ^ { r1[d-2:0], r1[d-1] };

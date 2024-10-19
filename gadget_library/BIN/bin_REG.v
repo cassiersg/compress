@@ -13,7 +13,7 @@
 module bin_REG
 #
 (
-    parameter W = 1
+    parameter integer W = 1
 )
 (
     input clk,
@@ -27,4 +27,4 @@ always@(posedge clk)
 
 assign out = regi;
 
-endmodule 
+endmodule

@@ -15,7 +15,13 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKmux #(parameter d=`DEFAULTSHARES, parameter count=1) (sel, in_true, in_false, out);
+module MSKmux #(parameter integer d=`DEFAULTSHARES, parameter integer count=1)
+(
+    sel,
+    in_true,
+    in_false,
+    out
+);
 
 (* fv_type = "control" *) input sel;
 (* fv_type = "sharing", fv_latency = 0, fv_count=count *) input  [count*d-1:0] in_true;

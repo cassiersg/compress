@@ -18,42 +18,59 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_hpc3_cross_er #(parameter d=`DEFAULTSHARES, parameter have_inner=0) (ina, ina_prev, inb, rnd, clk, out);
+module MSKand_hpc3_cross_er #(parameter integer d=`DEFAULTSHARES, parameter integer have_inner=0)
+(
+    ina,
+    ina_prev,
+    inb,
+    rnd,
+    clk,
+    out
+);
 
 `include "MSKand_hpc3.vh"
-localparam mat_rnd = hpc3rnd/2;
+localparam integer mat_rnd = hpc3rnd/2;
 
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina;
-(* matchi_type = "sharing", matchi_latency = 1, fv_type = "sharing", fv_latency = 1 *) input  [d-1:0] ina_prev;
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inb;
-(* matchi_type = "random", matchi_latency = 0, fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *) input [hpc3rnd-1:0] rnd;
-(* matchi_type = "clock", fv_type = "clock" *) input clk;
-(* matchi_type = "sharing", matchi_latency = 1, fv_type = "random", fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
-                                      
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] ina;
+(* matchi_type = "sharing", matchi_latency = 1, fv_type = "sharing", fv_latency = 1 *)
+input  [d-1:0] ina_prev;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] inb;
+(* matchi_type = "random", matchi_latency = 0 *)
+(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *)
+input [hpc3rnd-1:0] rnd;
+(* matchi_type = "clock", fv_type = "clock" *)
+input clk;
+(* matchi_type = "sharing", matchi_latency = 1 *)
+(* fv_type = "random", fv_type = "sharing", fv_latency = 1 *)
+output [d-1:0] out;
+
 genvar i,j;
 
 // unpack vector to matrix --> easier for randomness handling
 wire [mat_rnd-1:0] rnd0 = rnd[0 +: mat_rnd];
 wire [mat_rnd-1:0] rnd1 = rnd[mat_rnd +: mat_rnd];
-wire [d-1:0] rnd_mat0 [d-1:0]; 
-wire [d-1:0] rnd_mat1 [d-1:0]; 
-for(i=0; i<d; i=i+1) begin: rnd_mat_i
+wire [d-1:0] rnd_mat0 [d]; // Same as [d-1:0], but follows verible lint rules;
+wire [d-1:0] rnd_mat1 [d]; // Same as [d-1:0], but follows verible lint rules;
+for(i=0; i<d; i=i+1) begin: gen_rnd_mat_i
     assign rnd_mat0[i][i] = 0;
     assign rnd_mat1[i][i] = 0;
-    for(j=i+1; j<d; j=j+1) begin: rnd_mat_j
+    for(j=i+1; j<d; j=j+1) begin: gen_rnd_mat_j
         assign rnd_mat0[j][i] = rnd0[((i*d)-i*(i+1)/2)+(j-1-i)];
         assign rnd_mat1[j][i] = rnd1[((i*d)-i*(i+1)/2)+(j-1-i)];
         // The next line is equivalent to
         // assign rnd_mat[i][j] = rnd_mat[j][i];
-        // but we changed it for Verilator efficient simulation -> Avoid UNOPFLAT Warning (x2 simulation perfs enabled)
+        // but we changed it for Verilator efficient
+        // simulation -> Avoid UNOPFLAT Warning (x2 simulation perfs enabled)
         assign rnd_mat0[i][j] = rnd0[((i*d)-i*(i+1)/2)+(j-1-i)];
         assign rnd_mat1[i][j] = rnd1[((i*d)-i*(i+1)/2)+(j-1-i)];
     end
 end
 
-for(i=0; i<d; i=i+1) begin: ParProdI
+for(i=0; i<d; i=i+1) begin: gen_ParProdI
     wire [d-2:0] u, v;
-    if (have_inner == 1) begin
+    if (have_inner == 1) begin: gen_inner
         wire aibi;
         bin_REG #(.W(1)) REGin_aibi(
             .clk(clk),
@@ -61,12 +78,12 @@ for(i=0; i<d; i=i+1) begin: ParProdI
             .out(aibi)
         );
         assign out[i] = ^u ^ ^v ^ aibi;
-    end else begin
+    end else begin: gen_others
         assign out[i] = ^u ^ ^v;
     end
-    for(j=0; j<d; j=j+1) begin: ParProdJ
-        if (i != j) begin: NotEq
-            localparam j2 = j < i ?  j : j-1;
+    for(j=0; j<d; j=j+1) begin: gen_ParProdJ
+        if (i != j) begin: gen_NotEq
+            localparam integer j2 = j < i ?  j : j-1;
             // u = Reg[not(a)*rnd0 + rnd1]
             wire u_comb = (~ina[i] & rnd_mat0[i][j]) ^ rnd_mat1[i][j];
             bin_REG #(.W(1)) REGin_u(

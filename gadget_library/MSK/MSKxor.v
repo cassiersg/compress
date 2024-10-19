@@ -15,7 +15,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKxor #(parameter d=`DEFAULTSHARES, parameter count=1) (ina, inb, out);
+module MSKxor #(parameter integer d=`DEFAULTSHARES, parameter integer count=1) (ina, inb, out);
 
 (* fv_type = "sharing", fv_latency = 0, fv_count=count *) input  [count*d-1:0] ina, inb;
 (* fv_type = "sharing", fv_latency = 0, fv_count=count *) output [count*d-1:0] out;

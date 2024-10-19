@@ -15,13 +15,13 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKcst #(parameter d=`DEFAULTSHARES, parameter count=1) (cst, out);
+module MSKcst #(parameter integer d=`DEFAULTSHARES, parameter integer count=1) (cst, out);
 
-(* fv_type = "control" *)       input [count-1:0] cst;
+(* fv_type = "control" *) input [count-1:0] cst;
 (* fv_type = "sharing", fv_count = count, fv_latency = 0 *) output [count*d-1:0] out;
 
 genvar i;
-for(i=0; i<count; i=i+1) begin: i_gen_m
+for(i=0; i<count; i=i+1) begin: gen_i_gen_m
     assign out[i*d +: d] = {{(d-1){1'b0}}, cst[i]};
 end
 

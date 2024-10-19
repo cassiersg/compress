@@ -15,7 +15,7 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKinv #(parameter d=`DEFAULTSHARES, parameter count=1) (in, out);
+module MSKinv #(parameter integer d=`DEFAULTSHARES, parameter integer count=1) (in, out);
 
 
 (* fv_type = "sharing", fv_latency = 0, fv_count=count *) input  [count*d-1:0] in;
@@ -23,9 +23,9 @@ module MSKinv #(parameter d=`DEFAULTSHARES, parameter count=1) (in, out);
 
 genvar i;
 generate
-for(i=0; i<count; i=i+1) begin: inv
+for(i=0; i<count; i=i+1) begin: gen_inv
     assign out[i*d] = ~in[i*d];
-    if (d > 1) begin
+    if (d > 1) begin: gen_out_assign
         assign out[i*d+1 +: d-1] = in[i*d+1 +: d-1];
     end
 end

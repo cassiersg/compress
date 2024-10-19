@@ -18,16 +18,24 @@
 `ifndef DEFAULTSHARES
 `define DEFAULTSHARES 2
 `endif
-module MSKand_hpc3_cross #(parameter d=`DEFAULTSHARES) (ina, inb, rnd, clk, out);
+module MSKand_hpc3_cross #(parameter integer d=`DEFAULTSHARES)
+(ina, inb, rnd, clk, out);
 
 `include "MSKand_hpc3.vh"
-localparam mat_rnd = hpc3rnd/2;
+localparam integer mat_rnd = hpc3rnd/2;
 
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] ina;
-(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *) input  [d-1:0] inb;
-(* matchi_type = "random", matchi_latency = 0, fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *) input [hpc3rnd-1:0] rnd;
-(* matchi_type = "clock", fv_type = "clock" *) input clk;
-(* matchi_type = "sharing", matchi_latency = 1, fv_type = "random", fv_type = "sharing", fv_latency = 1 *) output [d-1:0] out;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] ina;
+(* matchi_type = "sharing", matchi_latency = 0, fv_type = "sharing", fv_latency = 0 *)
+input  [d-1:0] inb;
+(* matchi_type = "random", matchi_latency = 0 *)
+(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = hpc3rnd *)
+input [hpc3rnd-1:0] rnd;
+(* matchi_type = "clock", fv_type = "clock" *)
+input clk;
+(* matchi_type = "sharing", matchi_latency = 1 *)
+(* fv_type = "random", fv_type = "sharing", fv_latency = 1 *)
+output [d-1:0] out;
 
 wire [d-1:0] ina_prev;
 bin_REG #(.W(d)) REGin_ina_prev (
@@ -36,6 +44,14 @@ bin_REG #(.W(d)) REGin_ina_prev (
     .out(ina_prev)
 );
 
-MSKand_hpc3_cross_er #(.d(d)) inner(ina, ina_prev, inb, rnd, clk, out);
+MSKand_hpc3_cross_er #(.d(d))
+inner(
+    .ina(ina),
+    .ina_prev(ina_prev),
+    .inb(inb),
+    .rnd(rnd),
+    .clk(clk),
+    .out(out)
+);
 
 endmodule

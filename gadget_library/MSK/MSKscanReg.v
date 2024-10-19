@@ -12,7 +12,15 @@
 // Due to variable latency, this cannot be verified as an isolated block by
 // fullVerif, hence we flatten it.
 (* fv_strat = "flatten" *)
-module MSKscanReg #(parameter d=1, parameter count=1) (clk, en, scan_en, in_d, in_scan, out_q);
+module MSKscanReg #(parameter integer d=1, parameter integer count=1)
+(
+    clk,
+    en,
+    scan_en,
+    in_d,
+    in_scan,
+    out_q
+);
 
 input clk;
 input en;
@@ -22,7 +30,11 @@ input  [count*d-1:0] in_scan;
 output [count*d-1:0] out_q;
 
 wire [count*d-1:0] reg_in;
-MSKmux #(.d(d), .count(count)) mux (.sel(scan_en), .in_true(in_scan), .in_false(in_d), .out(reg_in));
-MSKregEn #(.d(d), .count(count)) regen (.clk(clk), .en(en), .in(reg_in), .out(out_q));
+
+MSKmux #(.d(d), .count(count))
+mux (.sel(scan_en), .in_true(in_scan), .in_false(in_d), .out(reg_in));
+
+MSKregEn #(.d(d), .count(count))
+regen (.clk(clk), .en(en), .in(reg_in), .out(out_q));
 
 endmodule

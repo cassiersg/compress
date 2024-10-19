@@ -12,20 +12,25 @@
 `ifdef FULLVERIF
 (* fv_prop = "PINI", fv_strat = "assumed", fv_order=2 *)
 `endif
-module MSKand_ghpcll #(parameter d=2) (ina, inb, rnd, clk, out);
+module MSKand_ghpcll #(parameter integer d=2) (ina, inb, rnd, clk, out);
 
 generate
-if (d != 2) begin
+if (d != 2) begin: gen_failure
     // Invalid parameter.
     inst_irrelevant_d parameter_d_must_be_2();
 end
 endgenerate
 
-(* fv_type = "sharing", fv_latency = 0 *) input  [1:0] ina;
-(* fv_type = "sharing", fv_latency = 0 *) input  [1:0] inb;
-(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = 4 *) input [4-1:0] rnd;
-(* fv_type = "clock" *) input clk;
-(* fv_type = "random", fv_type = "sharing", fv_latency = 1 *) output [1:0] out;
+(* fv_type = "sharing", fv_latency = 0 *)
+input  [1:0] ina;
+(* fv_type = "sharing", fv_latency = 0 *)
+input  [1:0] inb;
+(* fv_type = "random", fv_count = 1, fv_rnd_lat_0 = 0, fv_rnd_count_0 = 4 *)
+input [4-1:0] rnd;
+(* fv_type = "clock" *)
+input clk;
+(* fv_type = "random", fv_type = "sharing", fv_latency = 1 *)
+output [1:0] out;
 
 wire a0 = ina[0];
 wire b0 = inb[0];
