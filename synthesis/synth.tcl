@@ -26,6 +26,8 @@ yosys fsm
 yosys opt
 yosys memory
 yosys opt
+yosys pmuxtree
+yosys opt
 yosys techmap
 yosys opt
 
@@ -35,4 +37,4 @@ yosys clean
 
 yosys write_verilog $resdir/design.v
 yosys tee -o $resdir/area.json stat -liberty $lib -json
-yosys write_json $resdir/design.json
+yosys write_json -noscopeinfo $resdir/design.json 
