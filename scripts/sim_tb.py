@@ -3,6 +3,7 @@ import json
 import os
 import random
 import logging
+import functools as ft
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -14,6 +15,15 @@ from cocotb.types import LogicArray
 from scripts import compress
 from scripts import circuit_eval
 
+def resolve_nbits(hnd):
+    if isinstance(hnd, cocotb.types.LogicArray):
+        return (hnd.left - hnd.right) + 1
+    elif isinstance(hnd, cocotb.handle.LogicArrayObject):
+        return (hnd.left - hnd.right) + 1
+    elif isinstance(hnd, cocotb.handle.LogicObject):
+        return 1
+    else:
+        raise ValueError(f"Type {type(hnd)} not supported.")
 
 class DutWrapper:
     TEST_ITER = 1000
@@ -37,12 +47,15 @@ class DutWrapper:
         self.set_handles = self.input_handles | self.rnd_handles | self.control_handles
 
     def exhaustive_test_niter(self):
-        return 2 ** sum(hnd.value.n_bits for hnd in self.set_handles.values())
+        nbits = 0
+        for hnd in self.set_handles.values():
+            nbits += resolve_nbits(hnd)
+        return 2 ** nbits
 
     @staticmethod
     def handles_pattern(handles):
         return {
-            name: random.getrandbits(hnd.value.n_bits) for name, hnd in handles.items()
+            name: random.getrandbits(resolve_nbits(hnd)) for name, hnd in handles.items()
         }
 
     def random_pattern(self):
@@ -55,7 +68,7 @@ class DutWrapper:
     def exhaustive_patterns(self):
         def named_patterns(handles):
             for pattern in it.product(
-                *(range(2**hnd.value.n_bits) for hnd in handles.values())
+                *(range(2**((hnd.left - hnd.right)+1)) for hnd in handles.values())
             ):
                 yield dict(zip(handles.keys(), pattern))
 
@@ -74,11 +87,15 @@ class DutWrapper:
 
     def reset_inputs(self):
         for hnd in (self.input_handles | self.control_handles).values():
-            hnd.value = LogicArray("X" * hnd.value.n_bits)
+            n_bits = resolve_nbits(hnd)
+            nval = ft.reduce(lambda a,b:a+b, ["X" for _ in range(n_bits)])
+            hnd.value = nval
 
     def reset_rnd(self):
         for hnd in self.rnd_handles.values():
-            hnd.value = LogicArray("X" * hnd.value.n_bits)
+            n_bits = resolve_nbits(hnd)
+            nval = ft.reduce(lambda a,b:a+b, ["X" for _ in range(n_bits)])
+            hnd.value = nval
 
     def reset(self):
         self.reset_inputs()

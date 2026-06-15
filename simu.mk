@@ -2,7 +2,7 @@
 WORKDIR ?= ./
 IVERILOG_WARNINGS ?=
 
-PLUSARGS += -fst 
+COCOTB_PLUSARGS += -fst 
 VERILOG_SOURCES += $(WORKDIR)/iverilog_dump.v
 COMPILE_ARGS += -s iverilog_dump
 
@@ -35,7 +35,7 @@ SIM_BUILD=$(WORKDIR)/work
 export COCOTB_RESULTS_FILE = $(WORKDIR)/result.xml
 
 # MODULE is the basename of the Python test file
-MODULE = scripts.sim_tb
+COCOTB_TEST_MODULES = scripts.sim_tb
 
 # include cocotb's make rules to take care of the simulator setup
 include $(shell cocotb-config --makefiles)/Makefile.sim
