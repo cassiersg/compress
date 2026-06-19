@@ -311,9 +311,9 @@ def add_ports_definition(lines, ports_cfg):
         if c in ports_cfg["inputs"]:
             del ports_cfg["inputs"][c]
     # Second create the lines
-    inputs_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["inputs"].keys())
-    outputs_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["outputs"].keys())
-    controls_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["controls"].keys())
+    inputs_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["inputs"].keys(), "").strip()
+    outputs_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["outputs"].keys(), "").strip()
+    controls_str_port_sigs = ft.reduce(lambda a, b: a+' '+b, ports_cfg["controls"].keys(), "").strip()
     lines.insert(0, "INPUTS {}".format(inputs_str_port_sigs)) 
     lines.insert(1, "OUTPUTS {}".format(outputs_str_port_sigs)) 
     lines.insert(2, "CONTROLS {}".format(controls_str_port_sigs)) 
